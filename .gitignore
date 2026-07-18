@@ -1,0 +1,47 @@
+# ============================================================
+# Data — MovieLens usage terms ห้าม redistribute raw dataset
+# notebook/CLI จะดาวน์โหลดตอน runtime เท่านั้น ห้าม commit
+# ============================================================
+data/
+*.zip
+*.csv
+*.parquet
+
+# Generated artifacts (reproducible from pipeline — ไม่ commit binary ใหญ่)
+artifacts/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+
+# Testing / tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets — ห้ามมี credentials ใน repo เด็ดขาด
+.env
+.env.*
+*.pem
+*.key
+credentials*.json
+
+# Internal planning documents — เก็บเป็นส่วนตัว ไม่เผยแพร่ใน public repo
+*.docx
