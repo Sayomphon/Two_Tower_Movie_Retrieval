@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# workflow นี้แค่อ่านโค้ดมา test — ไม่เขียนอะไรกลับ repo (least privilege)
+permissions:
+  contents: read
+
+# push ติด ๆ กันบน ref เดียวกัน → ยกเลิกรอบเก่า ไม่ปล่อย runner ค้าง
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # ขอบล่าง/ขอบบนของ requires-python ที่ทดสอบจริง (ช่วงที่ประกาศคือ >=3.11,<3.14)
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      # actions ทุกตัว pin ด้วย commit SHA — tag ถูกย้ายได้ SHA ย้ายไม่ได้ (supply-chain)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # ไม่ทิ้ง token ไว้ใน .git/config ให้ step หลังใช้ต่อ
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - run: pip install -e ".[dev]"
+
+      - run: ruff check src tests
+
+      # tests/test_pipeline_integration.py skip เองเมื่อไม่มี ml-100k.zip ในเครื่อง —
+      # CI จึงไม่ต้องดาวน์โหลด dataset (ช้า + MovieLens terms ห้าม redistribute)
+      - run: pytest -q

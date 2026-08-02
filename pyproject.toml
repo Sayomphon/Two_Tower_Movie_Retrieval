@@ -7,7 +7,7 @@ name = "movie-retrieval"
 version = "0.1.0"
 description = "Two-tower movie recommendation retrieval system on MovieLens 100K — temporal split, popularity baseline, Recall@K/NDCG, coverage/bias analysis, serving index"
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 authors = [{ name = "Sayomphon Khampromma" }]
 dependencies = [
     "tensorflow>=2.16,<2.21",

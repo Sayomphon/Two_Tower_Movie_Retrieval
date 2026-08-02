@@ -57,7 +57,16 @@
   เป็น Mermaid (§18 + หน้าแรกของ README ให้ recruiter อ่านได้โดยไม่ต้องเปิด notebook)
 - `README.md` — Problem → Approach → Result → Key decisions → Limitations (recruiter-first)
 - `docs/model_card.md` — intended use, data terms, metrics, cold-start policy, ethics
+- `docs/interview_prep.md` — pitch 90 วินาที + 7 คำถามออกแบบ + คำถามยากจากผลจริง + deep-dive
 - ไฟล์นี้ — development log
+
+### 1.6 Colab bootstrap + CI
+- notebook §02 มี bootstrap cell: ถ้า `import movie_retrieval` ไม่เจอ → clone repo + pip install
+  แล้ว `importlib.invalidate_caches()` ให้ import ได้ในรอบเดียวโดยไม่ต้อง restart runtime
+  (ดูบทเรียนข้อ 3.6 — ทำไมต้อง install แบบปกติ ไม่ใช่ `-e`)
+- `requires-python` เปิดเป็น `>=3.11,<3.14` ให้ Colab runtime ใหม่ติดตั้งได้ (TF 2.20 มี cp313 wheels)
+- `.github/workflows/ci.yml` — ruff + pytest บน Python 3.11/3.12 ทุก push/PR,
+  `permissions: contents: read`, actions pin ด้วย commit SHA, `persist-credentials: false`
 
 ---
 
@@ -93,6 +102,15 @@
 5. **ตัวเลขในเอกสารปัดผิด** — README/DEVELOPMENT_LOG เขียน recall@50 ของ popularity เป็น
    0.184 ทั้งที่ค่าจริงคือ 0.18346 (ปัด 3 ตำแหน่ง = 0.183) → เจอเพราะเขียน gate
    เทียบทุกตัวเลขในเอกสารกับ `artifacts/metrics.json` แบบอัตโนมัติ ไม่ใช่ไล่อ่านเอง
+6. **`pip install -e` ทำให้ Colab bootstrap พังแบบเงียบ ๆ** — ร่างแรกของ bootstrap cell ใช้
+   editable install แล้วเรียก `importlib.invalidate_caches()` ตามที่คิดว่าพอ พอทดสอบด้วยการ
+   จำลอง runtime เปล่า (venv ใหม่ + working dir ที่ไม่มี `pyproject.toml`) พบว่า cell ถัดไปยัง
+   `ModuleNotFoundError` เพราะ editable install ชี้ path ผ่านไฟล์ `__editable__*.pth` ซึ่ง Python
+   ประมวลผลเฉพาะตอน start interpreter (`site.addsitedir`) → `invalidate_caches()` ที่ล้างแค่
+   FileFinder cache จึงช่วยไม่ได้ เปลี่ยนเป็น install แบบปกติ (ลงใน `site-packages` ที่อยู่บน
+   `sys.path` อยู่แล้ว) จึงผ่าน (บทเรียน: gate ที่เขียนว่า "Run all ต้องผ่านโดยไม่แก้ cell" ต้อง
+   ทดสอบใน runtime เปล่าจริง ๆ — รันในเครื่องที่ติดตั้ง package ไว้แล้วจะเข้า branch no-op เสมอ
+   และไม่พิสูจน์อะไรเลย)
 
 ## 4. Security measures
 
@@ -118,8 +136,7 @@
 2. Ranking MLP หลัง retrieval
 3. ScaNN/Faiss index + recall-latency benchmark
 4. Log-Q correction สำหรับ in-batch sampling bias
-5. CI (GitHub Actions): pytest + ruff ทุก push
-6. MLflow tracking แทน experiments.json เมื่อ experiment เยอะขึ้น
+5. MLflow tracking แทน experiments.json เมื่อ experiment เยอะขึ้น
 
 ## 7. วิธีรันซ้ำจากศูนย์
 

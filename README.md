@@ -1,5 +1,8 @@
 # Two-Tower Movie Retrieval — MovieLens 100K
 
+[![CI](https://github.com/Sayomphon/Two_Tower_Movie_Retrieval/actions/workflows/ci.yml/badge.svg)](https://github.com/Sayomphon/Two_Tower_Movie_Retrieval/actions/workflows/ci.yml)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Sayomphon/Two_Tower_Movie_Retrieval/blob/main/notebooks/movielens_two_tower_retrieval.ipynb)
+
 Candidate-retrieval system that takes a `user_id` and returns Top-K movie candidates,
 built end-to-end with production-style engineering discipline: temporal evaluation,
 leakage audits, a popularity baseline, bias/coverage guardrails, and an exportable,
@@ -112,7 +115,8 @@ SHA-256. It is **never committed** (MovieLens research-use terms prohibit redist
 ├── src/movie_retrieval/      # config, data, splits, baseline, model, evaluate, index, pipeline, cli
 ├── tests/                    # unit + integration tests (leakage, metrics, index reload, security)
 ├── notebooks/movielens_two_tower_retrieval.ipynb   # 19-section narrative notebook (executed)
-├── docs/                     # model card, development log
+├── docs/                     # model card, development log, interview prep, project status
+├── .github/workflows/ci.yml  # ruff + pytest on Python 3.11 / 3.12
 ├── artifacts/                # generated: model, index, vocab, metrics (gitignored)
 ├── requirements.txt          # runtime + notebook dependency ranges
 └── requirements-lock.txt     # frozen dependency versions (exact reproduction)
@@ -133,6 +137,15 @@ SHA-256. It is **never committed** (MovieLens research-use terms prohibit redist
    in-memory Top-K exactly.
 6. **Security hygiene** — HTTPS + pinned SHA-256 download, zip-slip-safe extraction,
    input validation at the serving API, no secrets/data in the repo.
+
+## Interview notes
+
+[`docs/interview_prep.md`](docs/interview_prep.md) — a 90-second pitch, the seven standard
+retrieval design questions (retrieval vs ranking, why not RMSE, temporal splits, negative
+sampling, cold start, brute force vs ANN, limits of offline scoring), and the harder ones
+*this* project's results invite: why the popularity baseline wins at K=10, whether that gap
+is even significant, and what would actually close it. Every figure quoted there comes from
+the same run as the tables above.
 
 ## Limitations
 
