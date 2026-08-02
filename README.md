@@ -8,9 +8,48 @@ built end-to-end with production-style engineering discipline: temporal evaluati
 leakage audits, a popularity baseline, bias/coverage guardrails, and an exportable,
 version-stamped serving index with a cold-start fallback.
 
+`Python 3.11–3.13` · `TensorFlow 2.20 / Keras 3` · no TFRS · 62 tests · CI on 3.11 + 3.12 ·
+Colab-verified · MIT
+
 > **Portfolio project** — demonstrates the *retrieval* stage of a modern recommender
 > (retrieval → ranking → re-ranking), the stage that narrows a large catalogue to a few
 > hundred candidates under tight latency budgets.
+
+## Results at a glance
+
+*Temporal test set · 943 users · one held-out future interaction each · full-catalogue scoring*
+
+| metric @10 | popularity (R0) | two-tower (R1) |
+|---|---|---|
+| Recall@10 | **0.066** | 0.058 |
+| NDCG@10 | **0.033** | 0.027 |
+| Recall@50 | 0.183 | **0.231** |
+| Catalogue coverage@10 | 5.4% | **89.3%** |
+| Top-10%-popular share of slots | 100% | **6.3%** |
+| Gini exposure | 0.99 | **0.48** |
+
+**Honest headline:** the popularity baseline edges out the ID-only two-tower model at K=10 —
+a well-known result on small temporal datasets — while the two-tower model wins at K=50
+(the regime that matters for a retrieval stage feeding a ranker) and delivers **~16× higher
+catalogue coverage** with drastically lower popularity concentration. Slice analysis shows
+the model is strongest exactly where popularity fails: long-tail test items (2.6× head
+recall) and low-history users. Conclusions are stable under the positive-interaction-rule
+sensitivity check (`rating ≥ 4` vs all ratings). Serving latency: **p95 ≈ 1 ms** per
+single-user query on a laptop CPU (the exact figure moves with machine load —
+`artifacts/metrics.json` carries the value from the run reported here).
+
+![Catalogue coverage at 10 and a Lorenz curve of item exposure, popularity baseline vs two-tower](docs/img/coverage_lorenz.png)
+
+*Left: share of the catalogue that ever appears in a Top-10 list. Right: how concentrated
+exposure is — the popularity curve stays flat along the axis and then shoots up at the very
+end (a handful of movies take essentially every slot, Gini 0.99), while the two-tower curve
+sits much closer to the equality diagonal (Gini 0.48). This is the trade that the K=10
+number alone hides, and the reason both are tracked as first-class metrics.*
+
+Everything above is reproduced end-to-end by
+[the notebook](notebooks/movielens_two_tower_retrieval.ipynb) — re-run on a clean Google
+Colab runtime (Python 3.12 / TF 2.20, 21/21 cells, ~5 min), which returns the same metrics
+to every digit reported here.
 
 ## Problem
 
@@ -20,6 +59,17 @@ evaluation must mirror serving reality**: predicting *future* interactions from 
 ones. A random train/test split leaks the future and inflates every metric — so everything
 here is evaluated with a **temporal leave-last-1-out split per user**, enforced by an
 automated leakage audit that fails the pipeline on violation.
+
+![Per-user train/val/test timelines beside a gap-sign audit across all 943 users](docs/img/temporal_split_audit.png)
+
+*Left: five users' timelines — validation and test markers never sit to the left of train.
+Right: the same check across all 943 users, and the honest detail it exposes — for 422 users
+the validation interaction shares the **same second** as their last training interaction
+(415 for test vs validation), because MovieLens timestamps have one-second resolution and
+people rate several movies in one sitting. So the invariant the audit enforces is
+`max(train) ≤ val ≤ test` with a deterministic `movie_id` tie-break, not a strict
+inequality. Zero users violate it; writing "val/test always come after train" would have
+been an overclaim the data does not support.*
 
 ## Approach
 
@@ -66,27 +116,6 @@ flowchart LR
 exposure back to the event stream is why coverage and popularity bias are tracked as
 first-class metrics: today's recommendations become tomorrow's training labels.
 
-## Results (temporal test set, 943 users, full-catalogue scoring)
-
-| metric @10 | popularity (R0) | two-tower (R1) |
-|---|---|---|
-| Recall@10 | **0.066** | 0.058 |
-| NDCG@10 | **0.033** | 0.027 |
-| Recall@50 | 0.183 | **0.231** |
-| Catalogue coverage@10 | 5.4% | **89.3%** |
-| Top-10%-popular share of slots | 100% | **6.3%** |
-| Gini exposure | 0.99 | **0.48** |
-
-**Honest headline:** the popularity baseline edges out the ID-only two-tower model at K=10 —
-a well-known result on small temporal datasets — while the two-tower model wins at K=50
-(the regime that matters for a retrieval stage feeding a ranker) and delivers **~16× higher
-catalogue coverage** with drastically lower popularity concentration. Slice analysis shows
-the model is strongest exactly where popularity fails: long-tail test items (2.6× head
-recall) and low-history users. Conclusions are stable under the positive-interaction-rule
-sensitivity check (`rating ≥ 4` vs all ratings). Serving latency: **p95 ≈ 1 ms** per
-single-user query on a laptop CPU (the exact figure moves with machine load —
-`artifacts/metrics.json` carries the value from the run reported here).
-
 ## Quickstart
 
 ```bash
@@ -117,6 +146,7 @@ SHA-256. It is **never committed** (MovieLens research-use terms prohibit redist
 ├── notebooks/movielens_two_tower_retrieval.ipynb   # 19-section narrative notebook (executed)
 │   └── ..._Colab_Ran.ipynb   # same notebook, executed top-to-bottom on a clean Colab runtime
 ├── docs/                     # model card, development log, interview prep, project status
+│   └── img/                  # plots exported from the notebook for this README
 ├── .github/workflows/ci.yml  # ruff + pytest on Python 3.11 / 3.12
 ├── artifacts/                # generated: model, index, vocab, metrics (gitignored)
 ├── requirements.txt          # runtime + notebook dependency ranges
@@ -159,6 +189,9 @@ the same run as the tables above.
 
 ## License & data terms
 
-Code: MIT. Dataset: [MovieLens 100K](https://grouplens.org/datasets/movielens/100k/) by
-GroupLens — research use only, no redistribution, no commercial use; downloaded at runtime
-and excluded from version control.
+Code: MIT ([`LICENSE`](LICENSE)) — **covers this repository's source only.**
+
+Dataset: [MovieLens 100K](https://grouplens.org/datasets/movielens/100k/) by GroupLens, and
+the MIT license does **not** extend to it: research use only, no redistribution, no
+commercial use. It is downloaded at runtime against a pinned SHA-256 and excluded from
+version control, so nothing in this repository redistributes it.
