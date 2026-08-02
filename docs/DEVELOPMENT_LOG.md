@@ -1,5 +1,15 @@
 # Development Log — Two-Tower Movie Retrieval
 
+> **In English** — The build log for this project, kept as it was written rather than
+> tidied afterwards. It covers, in order: what was built (§1), the design decisions and why
+> each was taken — including choosing *not* to use TFRS (§2), **the bugs hit along the way
+> and what they taught** (§3 — the most useful section: a silently-flat training loss caused
+> by MEAN loss reduction, an overclaim about temporal splits that the data itself refuted,
+> and a Colab bootstrap that failed because editable installs are invisible to an already
+> running interpreter), the security measures (§4), headline results (§5), what would come
+> next (§6), and how to reproduce everything from scratch (§7). *Body text is Thai; code,
+> metric names, and commands are language-neutral.*
+
 > บันทึกการขึ้นโปรเจคตาม blueprint ใน `05_movie_recommender_ai_engineering_plan.docx`
 > วันที่: 18 กรกฎาคม 2026 · Environment: macOS arm64, Python 3.11.15, TensorFlow 2.20.0
 
@@ -27,7 +37,7 @@
 | `pipeline.py` | orchestration: prepare → train (เลือก model จาก val) → evaluate (test ครั้งเดียว) → export artifacts |
 | `cli.py` | `movie-retrieval prepare/train/evaluate/all/recommend` |
 
-### 1.3 Tests (62 ตัว — ผ่านทั้งหมด)
+### 1.3 Tests (71 ตัว — ผ่านทั้งหมด)
 - **Leakage tests**: temporal ordering ต่อ user, test user ไร้ train history ต้อง fail,
   poisoned split ต้อง raise `LeakageError`
 - **Metric correctness**: เทียบค่า Recall/NDCG/Gini ที่คำนวณมือ
@@ -37,6 +47,9 @@
 - **No-duplicate tests**: Top-K ต้องไม่มีหนังซ้ำทั้ง 3 ชั้น (evaluate / baseline / serving
   ซึ่งชั้น serving เสี่ยงสุดเพราะ over-fetch `k + len(seen)` ก่อน filter)
 - **Experiment-log tests**: เขียน run ซ้ำลง `experiments.json` ต้องแทนที่ ไม่ใช่สะสมแถวซ้ำ
+- **CLI contract tests**: argv → เรียก pipeline stage ไหนด้วย argument อะไร (monkeypatch
+  pipeline ทั้งหมด ไม่แตะ network/artifacts) — จุดที่พลาดง่ายสุดคือ `--include-seen`
+  ที่ถูกกลับด้านเป็น `exclude_seen` ก่อนส่งต่อ
 - **Integration test**: รัน prepare บน ml-100k จริงใน tmp dir (skip อัตโนมัติถ้าไม่มีไฟล์)
 
 ### 1.4 รัน pipeline จริง + ผลลัพธ์
@@ -67,6 +80,11 @@
 - `requires-python` เปิดเป็น `>=3.11,<3.14` ให้ Colab runtime ใหม่ติดตั้งได้ (TF 2.20 มี cp313 wheels)
 - `.github/workflows/ci.yml` — ruff + pytest บน Python 3.11/3.12 ทุก push/PR,
   `permissions: contents: read`, actions pin ด้วย commit SHA, `persist-credentials: false`
+- **Coverage gate `--cov-fail-under=65`** — ตั้งจากค่าที่ CI เห็นจริง (68%) ลบ buffer
+  ไม่ใช่เลขที่ตั้งลอย ๆ · เป็น regression gate ไม่ใช่เป้าหมาย · ค่าบน CI ต่ำกว่าในเครื่อง
+  เพราะ integration test skip เมื่อไม่มี dataset ทำให้ `pipeline.py` ไม่ถูกไล่
+  (ตอนตั้ง gate เจอว่า `cli.py` coverage 0% → เขียน CLI contract tests เพิ่ม 9 ตัว
+  ดัน cli.py เป็น 95% และ total 62% → 68%)
 - **ยืนยันบน Colab จริงแล้ว** (2 ส.ค. 2026, Python 3.12.13 / TF 2.20.0 / GPU T4): Run all
   จาก runtime เปล่าผ่าน 21/21 cells, 0 errors, ~5 นาที end-to-end, ไม่แก้ cell ใด ๆ (diff source ทั้ง 47 cells
   กับไฟล์ใน repo แล้วเหมือนกันทุกตัวอักษร) และได้ metric ตรงกับที่รันบน macOS arm64/Python 3.11
@@ -150,5 +168,5 @@ python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 movie-retrieval all --sensitivity   # ~2 นาทีบน CPU
 movie-retrieval recommend --user-id 42 --k 10
-pytest                              # 62 tests
+pytest                              # 71 tests
 ```

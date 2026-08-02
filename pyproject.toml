@@ -38,6 +38,13 @@ testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
 
+[tool.coverage.run]
+source = ["movie_retrieval"]
+
+[tool.coverage.report]
+# บรรทัดที่รันเฉพาะตอนเรียกเป็น script — ไม่ใช่โค้ดที่ test ควรไล่
+exclude_also = ["if __name__ == .__main__.:"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

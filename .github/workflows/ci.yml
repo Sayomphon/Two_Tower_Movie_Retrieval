@@ -42,4 +42,6 @@ jobs:
 
       # tests/test_pipeline_integration.py skip เองเมื่อไม่มี ml-100k.zip ในเครื่อง —
       # CI จึงไม่ต้องดาวน์โหลด dataset (ช้า + MovieLens terms ห้าม redistribute)
-      - run: pytest -q
+      # threshold ตั้งจากค่าที่วัดได้จริงบน CI (68%) ลบ buffer — เป็น regression gate
+      # ไม่ใช่เป้าหมายที่ตั้งลอย ๆ · pipeline.py ต่ำเพราะ path ที่ต้องใช้ dataset ถูก skip
+      - run: pytest -q --cov --cov-report=term-missing --cov-fail-under=65

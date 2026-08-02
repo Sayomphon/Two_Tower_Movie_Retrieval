@@ -1,7 +1,18 @@
 # Project Status — เทียบกับ Blueprint (docx)
 
+> **In English** — This file audits the project against the 14-chapter engineering blueprint
+> it was built from. Bottom line: **all 14 chapters complete, Definition of Done 9/9.** The
+> notebook runs top-to-bottom on a clean Google Colab runtime (Python 3.12 / TF 2.20, 21/21
+> cells, ~5 min) and reproduces the published metrics digit-for-digit on a different OS,
+> Python version, and accelerator. Everything that remains is explicitly optional in the
+> blueprint (the stretch goals in §5). Sections: 1 chapter-by-chapter status · 2 Definition
+> of Done · 3 five-day plan mapping · 4 what was closed after the first pass · 5 Colab
+> verification + remaining optional work · 6 deliberate deviations from the blueprint ·
+> 7 headline metrics. *Body text is Thai; all metric names, file paths, and commands are
+> language-neutral.*
+
 > อัปเดต: 2 สิงหาคม 2026 · เอกสารอ้างอิง: `05_movie_recommender_ai_engineering_plan.docx`
-> สรุปสั้น: **โค้ด + 62 tests + notebook (executed) + docs + CI ครบ และ push ขึ้น GitHub แล้ว**
+> สรุปสั้น: **โค้ด + 71 tests + notebook (executed) + docs + CI ครบ และ push ขึ้น GitHub แล้ว**
 > ([Sayomphon/Two_Tower_Movie_Retrieval](https://github.com/Sayomphon/Two_Tower_Movie_Retrieval))
 > **Definition of Done ครบ 9/9** — ยืนยันบน Google Colab จริงแล้ว (Run all จาก runtime เปล่า
 > ผ่านทั้ง 21 code cells และได้ตัวเลข metric ตรงกับที่รันบน macOS เป๊ะทุกหลัก)
@@ -19,7 +30,7 @@
 | 4 | Colab Environment & Reproducibility | ✅ เสร็จ | seed/version/lock ครบ · bootstrap cell (notebook §02) ติดตั้ง package เองบน runtime เปล่า · `requires-python` เปิดถึง `<3.14` · **Run all บน Colab ผ่านจริง** — หลักฐาน `notebooks/movielens_two_tower_retrieval_Colab_Ran.ipynb` (ดูข้อ 5) |
 | 5 | Detailed Notebook Blueprint (19 sections) | ✅ เสร็จ | notebook 47 cells execute ครบ พร้อม outputs/plots ฝังในไฟล์ |
 | 6 | Implementation Plan: Data to Model | ✅ เสร็จ | `model.py`, `baseline.py`, `experiments.json` มีครบ R0–R4 |
-| 7 | Evaluation, Testing, Error Analysis | ✅ เสร็จ | `evaluate.py` — Recall/NDCG/coverage/bias + slices · 62 tests |
+| 7 | Evaluation, Testing, Error Analysis | ✅ เสร็จ | `evaluate.py` — Recall/NDCG/coverage/bias + slices · 71 tests |
 | 8 | Execution Plan (5 days) | ✅ เทียบเท่า | ทำครบเนื้อหาทั้ง 5 วัน (ดู mapping ข้อ 3) |
 | 9 | Packaging, Inference, Deployment | ✅ เสร็จ | `index.py` (SavedModel + fallback), inference contract, monitoring plan (notebook §18) |
 | 10 | GitHub Portfolio Packaging | ✅ เสร็จ | push ขึ้น GitHub แล้ว · `requirements.txt` ครบตาม structure · visual evidence 6/6 · CI badge |
@@ -72,7 +83,7 @@
 | `requirements.txt` ตาม structure ของ blueprint | ✅ | ไฟล์ที่ root + ตารางเทียบ 3 ไฟล์ใน README |
 | Experiment tracking ครบ field + run R0–R4 | ✅ | `experiments.json`: recall/ndcg/coverage/train_seconds/n_params + `candidate_configuration` + `R4-serving` |
 | Comparison table มี metric/latency/size/explainability | ✅ | notebook §11 |
-| Test: Top-K ห้ามมีหนังซ้ำ (3 ชั้น) | ✅ | `test_evaluate.py`, `test_baseline.py`, `test_index.py` — รวมเป็น 62 tests |
+| Test: Top-K ห้ามมีหนังซ้ำ (3 ชั้น) | ✅ | `test_evaluate.py`, `test_baseline.py`, `test_index.py` — รวมเป็น 71 tests |
 | Visual evidence 6/6 | ✅ | long-tail §05 · split timeline §07 · comparison §11 · coverage+Lorenz §12 · embedding neighbours §15 · architecture (Mermaid) §18 + README |
 | Colab bootstrap cell | ✅ | notebook §02 cell แรก — clone + install เมื่อ import ไม่เจอ, no-op เมื่อรัน local · ยืนยันบน Colab จริงแล้ว (ข้อ 5) |
 | `docs/interview_prep.md` | ✅ | pitch + 7 คำถาม + คำถามยากจากผลจริง + deep-dive |
@@ -146,7 +157,7 @@ query latency p95 2.938 ms (Colab) vs 1.097 ms (laptop) · index build 0.198 s v
 | docx เขียน | ที่ทำจริง | เหตุผล |
 |---|---|---|
 | ใช้ TensorFlow Recommenders (TFRS) | เขียน in-batch sampled softmax เอง (pure TF/Keras 3) | TFRS อยู่ใน maintenance mode + ไม่ compat Keras 3 (ต้องใช้ legacy-Keras hack) — ดู `DEVELOPMENT_LOG.md` §2 |
-| `tests/test_recommendation_index.py` | `tests/test_index.py` (+ อีก 8 ไฟล์) | ครอบคลุมกว่า — 62 tests รวม leakage/security/metric/no-duplicate |
+| `tests/test_recommendation_index.py` | `tests/test_index.py` (+ อีก 8 ไฟล์) | ครอบคลุมกว่า — 71 tests รวม leakage/security/metric/no-duplicate |
 | `requirements.txt` | มีครบทั้ง 3 ไฟล์: `pyproject.toml` (ทางหลัก) + `requirements.txt` (ranges ตาม structure) + `requirements-lock.txt` (pin เป๊ะ) | packaging มาตรฐานสมัยใหม่ แต่ไม่ทิ้งไฟล์ที่ผู้รีวิว/Colab คาดหวัง — README อธิบายว่าแต่ละไฟล์ใช้เมื่อไร |
 | Colab notebook อย่างเดียว | notebook + installable package (`src/`) | โค้ดหลัก testable/reusable, notebook เป็น narrative — ดีต่อ portfolio |
 | ไม่ได้ระบุเรื่อง CI | เพิ่ม GitHub Actions (ruff + pytest, matrix 3.11/3.12) | กัน commit ที่ทำ test พังหลุดเข้า main + สื่อ engineering maturity ตั้งแต่หน้าแรก |

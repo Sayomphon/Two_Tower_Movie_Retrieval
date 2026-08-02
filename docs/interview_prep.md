@@ -1,5 +1,14 @@
 # Interview Prep — Two-Tower Movie Retrieval
 
+> **In English** — Interview preparation notes for this project. §0 is a figures cheat
+> sheet, §1 a 90-second pitch (Thai and English), §2 the seven standard retrieval design
+> questions — retrieval vs ranking, why not RMSE, why temporal splits, where negatives come
+> from, cold start, brute force vs ANN, and the limits of offline scoring — and §3 the
+> harder questions *this* project's own results invite, chiefly: the popularity baseline
+> beats the model at K=10, so why ship the model at all. §4 goes deeper on loss reduction,
+> accidental-hit masking, full-catalogue evaluation, and index refresh. Every figure quoted
+> is cross-checked against `artifacts/metrics.json`. *Body text is Thai.*
+
 > ซ้อมตอบสำหรับโปรเจคนี้โดยเฉพาะ · ตัวเลขทุกตัวมาจาก **final run เดียวกัน**
 > (`artifacts/metrics.json` + `artifacts/experiments.json`) — ถ้ารัน pipeline ใหม่แล้วตัวเลขขยับ
 > ต้องกลับมาแก้ไฟล์นี้ด้วย
@@ -29,7 +38,7 @@
 | Slices Recall@10 | tail items 0.0723 vs head 0.0273 (**2.6×**) · low-activity users 0.0841 vs high 0.0287 |
 | OOV test items | 0.21% (รายงาน ไม่ silently drop) |
 | Sensitivity (rating ≥ 4) | Recall@10 0.0608 · Recall@50 0.2186 → ข้อสรุปไม่เปลี่ยน |
-| Tests | 62 tests (leakage / metric / security / index reload / no-duplicate) |
+| Tests | 71 tests (leakage / metric / security / index reload / no-duplicate) |
 
 ---
 
@@ -50,7 +59,7 @@
 > K=50 (0.231 vs 0.183) ซึ่งเป็น regime จริงของ retrieval และให้ coverage 89% เทียบกับ 5%
 > ของ baseline — ผมรายงานผลตามที่มันเป็น พร้อม slice ที่ชี้ว่าโมเดลแข็งตรงไหน (long-tail 2.6×)
 > ปิดท้ายด้วย serving index เป็น SavedModel ที่ตรวจ reload consistency ก่อน export, มี seen filter,
-> cold-start fallback, input validation และ 62 tests
+> cold-start fallback, input validation และ 71 tests
 
 **English**
 
@@ -66,7 +75,7 @@
 > (0.066 vs 0.058), while the two-tower model wins at K=50 (0.231 vs 0.183) — the regime a
 > retrieval stage actually operates in — with 89% catalogue coverage against 5%, and 2.6×
 > higher recall on long-tail items. It ships as a reload-verified SavedModel index with
-> seen-item filtering, a cold-start fallback, input validation, and 62 tests.
+> seen-item filtering, a cold-start fallback, input validation, and 71 tests.
 
 **กติกาเวลาพูด:** อย่าเลี่ยงผลที่แพ้ — พูดออกมาเองตั้งแต่ต้น แล้วอธิบายว่าทำไมยังเป็นผลที่ใช้ได้
 คนสัมภาษณ์ให้คะแนน "รู้ตัวว่าผลแปลว่าอะไร" มากกว่า "ตัวเลขสวย"

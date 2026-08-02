@@ -8,7 +8,7 @@ built end-to-end with production-style engineering discipline: temporal evaluati
 leakage audits, a popularity baseline, bias/coverage guardrails, and an exportable,
 version-stamped serving index with a cold-start fallback.
 
-`Python 3.11–3.13` · `TensorFlow 2.20 / Keras 3` · no TFRS · 62 tests · CI on 3.11 + 3.12 ·
+`Python 3.11–3.13` · `TensorFlow 2.20 / Keras 3` · no TFRS · 71 tests · CI on 3.11 + 3.12 ·
 Colab-verified · MIT
 
 > **Portfolio project** — demonstrates the *retrieval* stage of a modern recommender
@@ -124,7 +124,8 @@ pip install -e ".[dev]"                # package + CLI + test/notebook tooling
 
 movie-retrieval all --sensitivity      # download → validate → split → train → evaluate → export
 movie-retrieval recommend --user-id 42 --k 10
-pytest                                 # 62 tests incl. leakage & zip-slip guards
+pytest                                 # 71 tests incl. leakage & zip-slip guards
+pytest --cov --cov-fail-under=65       # the coverage gate CI enforces on every push
 ```
 
 Three dependency files, three different jobs — complements, not duplicates:
