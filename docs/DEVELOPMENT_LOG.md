@@ -68,7 +68,7 @@
 - `.github/workflows/ci.yml` — ruff + pytest บน Python 3.11/3.12 ทุก push/PR,
   `permissions: contents: read`, actions pin ด้วย commit SHA, `persist-credentials: false`
 - **ยืนยันบน Colab จริงแล้ว** (2 ส.ค. 2026, Python 3.12.13 / TF 2.20.0 / GPU T4): Run all
-  จาก runtime เปล่าผ่าน 21/21 cells, 0 errors, ไม่แก้ cell ใด ๆ (diff source ทั้ง 47 cells
+  จาก runtime เปล่าผ่าน 21/21 cells, 0 errors, ~5 นาที end-to-end, ไม่แก้ cell ใด ๆ (diff source ทั้ง 47 cells
   กับไฟล์ใน repo แล้วเหมือนกันทุกตัวอักษร) และได้ metric ตรงกับที่รันบน macOS arm64/Python 3.11
   ทุกหลัก — หลักฐานอยู่ที่ `notebooks/movielens_two_tower_retrieval_Colab_Ran.ipynb`
   ส่วน latency ต่างกันตามเครื่อง (p95 2.94 ms vs 1.10 ms) ซึ่งเอกสารระบุไว้แต่แรกว่าไม่ deterministic

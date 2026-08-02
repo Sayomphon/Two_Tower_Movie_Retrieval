@@ -42,7 +42,7 @@
 - [x] index/vocab/model reload + unknown-user fallback ผ่าน — `index.py` + tests
 - [x] recommendation examples + qualitative audit — notebook §15
 - [x] README แยก retrieval/ranking/online validation ชัดเจน — `README.md`
-- [x] **Colab Run all ได้ภายใน timebox** — 2 ส.ค. 2026, Python 3.12.13 / TF 2.20.0, 21/21 cells, 0 errors (ดูข้อ 5)
+- [x] **Colab Run all ได้ภายใน timebox** — 2 ส.ค. 2026, Python 3.12.13 / TF 2.20.0, 21/21 cells, 0 errors, ~5 นาที (ดูข้อ 5)
 
 **Final run checklist:**
 - [x] Restart แล้ว Run all สำเร็จ (local — clean state rerun ได้เลขเป๊ะ)
@@ -108,7 +108,7 @@
 | `project root` | `/content` (ตามที่ออกแบบไว้เมื่อรันนอก checkout) |
 | ผล Run all | ✅ **21/21 code cells, 0 errors**, execution_count เรียง 1→21 (รันรวดเดียวจริง ไม่มีรันข้าม) |
 | แก้ cell ด้วยมือหรือไม่ | ❌ ไม่มี — diff source ทั้ง 47 cells กับไฟล์ใน repo แล้วเหมือนกันทุกตัวอักษร |
-| เวลา end-to-end | ไม่ได้บันทึก (ไฟล์ที่ได้จาก Colab ไม่มี `executionInfo` timing) |
+| เวลา end-to-end | **~5 นาที** (จับเวลาโดยผู้รัน — ไฟล์ที่ Colab เซฟไม่มี `executionInfo` timing ให้ดึง) อยู่ในกรอบ timebox ที่ docx บทที่ 13 กำหนด |
 
 **Cross-platform reproducibility — จุดที่มีค่าที่สุดของการทดสอบนี้:**
 Colab (Linux x86-64, Python 3.12, GPU T4) ให้ตัวเลขเดียวกับ macOS arm64 / Python 3.11 **ทุกหลัก**
