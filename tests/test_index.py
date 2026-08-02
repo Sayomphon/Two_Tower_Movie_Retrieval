@@ -79,6 +79,13 @@ class TestRetrievalService:
         rec_ids = [r["movie_id"] for r in response["recommendations"]]
         assert "m3" not in rec_ids  # u1 เคยดู m3 แล้ว
 
+    def test_response_has_no_duplicate_movies(self, service):
+        # u1 เห็น m3 แล้ว → fetch_k = k + 1 แล้วค่อย filter ทีหลัง
+        # ถ้าตรรกะ over-fetch เพี้ยน หนังซ้ำจะโผล่ที่ชั้น serving นี้ก่อนที่อื่น
+        response = service.recommend("u1", k=2)
+        movie_ids = [r["movie_id"] for r in response["recommendations"]]
+        assert len(movie_ids) == len(set(movie_ids))
+
     def test_include_seen(self, service):
         response = service.recommend("u1", k=3, exclude_seen=False)
         rec_ids = [r["movie_id"] for r in response["recommendations"]]

@@ -56,18 +56,28 @@ a well-known result on small temporal datasets — while the two-tower model win
 catalogue coverage** with drastically lower popularity concentration. Slice analysis shows
 the model is strongest exactly where popularity fails: long-tail test items (2.6× head
 recall) and low-history users. Conclusions are stable under the positive-interaction-rule
-sensitivity check (`rating ≥ 4` vs all ratings). Serving latency: **p95 ≈ 0.2 ms** per query.
+sensitivity check (`rating ≥ 4` vs all ratings). Serving latency: **p95 ≈ 1 ms** per
+single-user query on a laptop CPU (the exact figure moves with machine load —
+`artifacts/metrics.json` carries the value from the run reported here).
 
 ## Quickstart
 
 ```bash
 python3.11 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]"                # package + CLI + test/notebook tooling
 
 movie-retrieval all --sensitivity      # download → validate → split → train → evaluate → export
 movie-retrieval recommend --user-id 42 --k 10
-pytest                                 # 56 tests incl. leakage & zip-slip guards
+pytest                                 # 62 tests incl. leakage & zip-slip guards
 ```
+
+Three dependency files, three different jobs — complements, not duplicates:
+
+| file | pins | use it when |
+|---|---|---|
+| `pyproject.toml` | version *ranges* + the `movie-retrieval` console script | installing the project itself (**recommended**) |
+| `requirements.txt` | the same runtime ranges plus notebook deps, no package install | you only need the libraries — a bare Colab/CI runtime |
+| `requirements-lock.txt` | exact resolved versions of the run reported above | reproducing the published metrics bit-for-bit |
 
 The dataset (~5 MB) is downloaded at runtime from GroupLens and verified against a pinned
 SHA-256. It is **never committed** (MovieLens research-use terms prohibit redistribution).
@@ -80,7 +90,8 @@ SHA-256. It is **never committed** (MovieLens research-use terms prohibit redist
 ├── notebooks/movielens_two_tower_retrieval.ipynb   # 19-section narrative notebook (executed)
 ├── docs/                     # model card, development log
 ├── artifacts/                # generated: model, index, vocab, metrics (gitignored)
-└── requirements-lock.txt     # frozen dependency versions
+├── requirements.txt          # runtime + notebook dependency ranges
+└── requirements-lock.txt     # frozen dependency versions (exact reproduction)
 ```
 
 ## Key engineering decisions

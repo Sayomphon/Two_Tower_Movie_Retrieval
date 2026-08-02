@@ -62,6 +62,13 @@ class TestTopKRecommendations:
         )
         assert recs["u1"] == ["m2", "m3"]
 
+    def test_no_duplicate_items(self):
+        # score เท่ากันคือเคสที่ tie-break พลาดแล้วคืนหนังซ้ำได้ง่ายที่สุด
+        scores = np.array([[2.0, 2.0, 2.0, 1.0], [3.0, 1.0, 3.0, 3.0]])
+        recs = topk_recommendations(scores, ["u1", "u2"], ["m1", "m2", "m3", "m4"], k=4)
+        for user_id, items in recs.items():
+            assert len(items) == len(set(items)), f"duplicate movie for {user_id}"
+
 
 class TestCoverageAndBias:
     def test_coverage(self):

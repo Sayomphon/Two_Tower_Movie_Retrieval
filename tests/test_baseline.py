@@ -36,6 +36,10 @@ class TestPopularityRecommender:
         seen = {"u1": {"m1"}}
         assert pop.recommend("u1", k=1, seen=seen, exclude_seen=False) == ["m1"]
 
+    def test_recommendations_have_no_duplicates(self, train_df):
+        recs = PopularityRecommender().fit(train_df).recommend("u1", k=3)
+        assert len(recs) == len(set(recs))
+
     def test_deterministic_tie_break(self):
         # m2 และ m1 count เท่ากัน → เรียงตาม movie_id
         df = pd.DataFrame([("u1", "m2"), ("u2", "m1")], columns=["user_id", "movie_id"])

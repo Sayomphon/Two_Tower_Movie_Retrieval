@@ -27,13 +27,16 @@
 | `pipeline.py` | orchestration: prepare → train (เลือก model จาก val) → evaluate (test ครั้งเดียว) → export artifacts |
 | `cli.py` | `movie-retrieval prepare/train/evaluate/all/recommend` |
 
-### 1.3 Tests (56 ตัว — ผ่านทั้งหมด)
+### 1.3 Tests (62 ตัว — ผ่านทั้งหมด)
 - **Leakage tests**: temporal ordering ต่อ user, test user ไร้ train history ต้อง fail,
   poisoned split ต้อง raise `LeakageError`
 - **Metric correctness**: เทียบค่า Recall/NDCG/Gini ที่คำนวณมือ
 - **Security tests**: zip-slip archive ถูกปฏิเสธ, user_id/k validation ปฏิเสธ input แปลก
   (SQL injection string, path traversal, k เกิน bound)
 - **Index tests**: save → load → Top-K ต้องเหมือนเดิมทุกตัว, unknown user → fallback flag
+- **No-duplicate tests**: Top-K ต้องไม่มีหนังซ้ำทั้ง 3 ชั้น (evaluate / baseline / serving
+  ซึ่งชั้น serving เสี่ยงสุดเพราะ over-fetch `k + len(seen)` ก่อน filter)
+- **Experiment-log tests**: เขียน run ซ้ำลง `experiments.json` ต้องแทนที่ ไม่ใช่สะสมแถวซ้ำ
 - **Integration test**: รัน prepare บน ml-100k จริงใน tmp dir (skip อัตโนมัติถ้าไม่มีไฟล์)
 
 ### 1.4 รัน pipeline จริง + ผลลัพธ์
@@ -41,7 +44,8 @@
 - Experiment matrix: R1 dim32 (val recall@10 = 0.0541) ชนะ R2 dim64 (0.0424) → เลือก R1
 - ลองจูน lr 0.5/0.2, epochs 30 เพิ่มเติม → ไม่ดีขึ้น ยืนยัน config เดิม
 - Final test: ดูตารางใน `README.md` / `artifacts/metrics.json`
-- Serving: reload consistency ผ่าน, latency p50 = 0.17ms / p95 = 0.23ms
+- Serving: reload consistency ผ่าน, index build 0.19s, latency p50 = 0.56ms / p95 = 1.10ms
+  (laptop CPU — ค่านี้แกว่งตามโหลดเครื่องราว 0.3–1.1ms ระหว่างรอบรัน ต่างจาก metric อื่นที่ deterministic)
 - CLI demo: user 42 → personalized recs, user 99999 → popularity fallback ✅
 
 ### 1.5 Notebook + Docs
@@ -111,5 +115,5 @@ python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 movie-retrieval all --sensitivity   # ~2 นาทีบน CPU
 movie-retrieval recommend --user-id 42 --k 10
-pytest                              # 56 tests
+pytest                              # 62 tests
 ```

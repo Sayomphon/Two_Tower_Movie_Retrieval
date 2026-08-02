@@ -78,27 +78,78 @@ def load_splits(paths: Paths) -> SplitResult:
 
 # ------------------------------------------------------------------ train
 
-def val_recall(model: TwoTowerModel, split: SplitResult, seen_train: dict) -> float:
-    """Val recall@SELECT_K ด้วย full-catalogue scoring (mask เฉพาะ train-seen)"""
-    val_truth = truth_from_frame(split.val)
-    users = sorted(val_truth, key=int)
-    scores = model.score_users(users)
-    recs = topk_recommendations(scores, users, model.movie_vocab, SELECT_K, seen=seen_train)
-    return ranking_metrics(recs, val_truth, ks=(SELECT_K,))[f"recall@{SELECT_K}"]
+def val_metrics(recs: dict[str, list[str]], val_truth: dict, catalogue_size: int) -> dict:
+    """Val metric ครบชุดตาม tracking spec (blueprint บทที่ 4): recall + ndcg + coverage"""
+    metrics = ranking_metrics(recs, val_truth, ks=(SELECT_K,))
+    metrics[f"coverage@{SELECT_K}"] = catalogue_coverage(recs, catalogue_size)
+    return metrics
+
+
+def _experiment_entry(run: str, config: dict, metrics: dict, **extra) -> dict:
+    """Run entry รูปแบบเดียวกันทุก run เพื่อให้ experiments.json เทียบข้ามแถวได้"""
+    return {
+        "run": run,
+        "config": config,
+        f"val_recall@{SELECT_K}": metrics[f"recall@{SELECT_K}"],
+        f"val_ndcg@{SELECT_K}": metrics[f"ndcg@{SELECT_K}"],
+        f"val_coverage@{SELECT_K}": metrics[f"coverage@{SELECT_K}"],
+        **extra,
+    }
+
+
+def _record_run(paths: Paths, entry: dict) -> None:
+    """Merge run entry เข้า experiments.json — แทนที่ run ชื่อเดิมถ้ามีอยู่แล้ว
+
+    evaluate() ถูกเรียกซ้ำได้โดยไม่ต้อง train ใหม่ ถ้า append ตรงๆ ไฟล์จะสะสม run
+    ชื่อซ้ำจนอ่านไม่ได้ — merge แบบ idempotent ทำให้รันกี่รอบผลก็เหมือนเดิม
+    เรียงตามชื่อ run ทุกครั้งเพื่อให้ไฟล์อ่านเป็น experiment matrix R0→R4 ตามลำดับ
+    """
+    exp_path = paths.artifacts_dir / "experiments.json"
+    if not exp_path.exists():
+        raise FileNotFoundError(f"{exp_path} not found — run `movie-retrieval train` first")
+
+    report = json.loads(exp_path.read_text())
+    runs: list[dict] = report["experiments"]
+    for i, existing in enumerate(runs):
+        if existing["run"] == entry["run"]:
+            runs[i] = entry
+            break
+    else:
+        runs.append(entry)
+    runs.sort(key=lambda run: run["run"])
+    exp_path.write_text(json.dumps(report, indent=2))
 
 
 def train(paths: Paths, cfg: ExperimentConfig) -> dict:
-    """รัน experiment matrix (R1 dim32, R2 dim64) เลือก winner จาก val recall@10"""
+    """รัน experiment matrix (R0 popularity, R1 dim32, R2 dim64) เลือก winner จาก val recall@10"""
     split = load_splits(paths)
     seen_train = seen_items_map(split.train)
     user_vocab, movie_vocab = build_vocabs(split.train)
+    val_truth = truth_from_frame(split.val)
+    val_users = sorted(val_truth, key=int)
+
+    # R0: baseline บน val — ใช้ทั้งเป็น reference ของ selection และเป็น run แรกของ matrix
+    started = time.perf_counter()
+    pop = PopularityRecommender().fit(split.train)
+    pop_seconds = time.perf_counter() - started
+    pop_recs = pop.recommend_batch(val_users, SELECT_K, seen=seen_train)
+    pop_metrics = val_metrics(pop_recs, val_truth, len(movie_vocab))
+    pop_recall = pop_metrics[f"recall@{SELECT_K}"]
 
     candidates = [
         ("R1-dim32", replace(cfg.model, embedding_dim=32)),
         ("R2-dim64", replace(cfg.model, embedding_dim=64, l2_regularization=1e-5)),
     ]
 
-    experiments: list[dict] = []
+    experiments = [
+        _experiment_entry(
+            "R0-popularity",
+            {"strategy": "global train-count ranking"},
+            pop_metrics,
+            train_seconds=round(pop_seconds, 2),
+            n_params=0,
+        )
+    ]
     best: tuple[str, TwoTowerModel, float] | None = None
     for run_name, model_cfg in candidates:
         logger.info("=== training %s: %s ===", run_name, model_cfg)
@@ -107,15 +158,20 @@ def train(paths: Paths, cfg: ExperimentConfig) -> dict:
         history = model.fit(split.train)
         train_seconds = time.perf_counter() - started
 
-        recall = val_recall(model, split, seen_train)
+        recs = topk_recommendations(
+            model.score_users(val_users), val_users, movie_vocab, SELECT_K, seen=seen_train
+        )
+        metrics = val_metrics(recs, val_truth, len(movie_vocab))
+        recall = metrics[f"recall@{SELECT_K}"]
         experiments.append(
-            {
-                "run": run_name,
-                "config": asdict(model_cfg),
-                "final_train_loss": history[-1],
-                f"val_recall@{SELECT_K}": recall,
-                "train_seconds": round(train_seconds, 2),
-            }
+            _experiment_entry(
+                run_name,
+                asdict(model_cfg),
+                metrics,
+                final_train_loss=history[-1],
+                train_seconds=round(train_seconds, 2),
+                n_params=model.n_parameters,
+            )
         )
         logger.info("%s val recall@%d = %.4f", run_name, SELECT_K, recall)
         if best is None or recall > best[2]:
@@ -124,13 +180,6 @@ def train(paths: Paths, cfg: ExperimentConfig) -> dict:
     assert best is not None
     winner_name, winner_model, winner_recall = best
 
-    # baseline บน val เพื่อเทียบใน selection report
-    pop = PopularityRecommender().fit(split.train)
-    val_truth = truth_from_frame(split.val)
-    val_users = sorted(val_truth, key=int)
-    pop_recs = pop.recommend_batch(val_users, SELECT_K, seen=seen_train)
-    pop_recall = ranking_metrics(pop_recs, val_truth, ks=(SELECT_K,))[f"recall@{SELECT_K}"]
-
     winner_model.save(paths.model_dir)
     report = {
         "experiments": experiments,
@@ -138,6 +187,14 @@ def train(paths: Paths, cfg: ExperimentConfig) -> dict:
         f"selected_val_recall@{SELECT_K}": winner_recall,
         f"baseline_val_recall@{SELECT_K}": pop_recall,
         "beats_baseline": winner_recall > pop_recall,
+        # negative/candidate configuration ที่ blueprint บทที่ 4 สั่งให้ log คู่กับ metric
+        "candidate_configuration": {
+            "negatives": "in-batch sampled softmax with accidental-hit masking",
+            "candidate_set": "full catalogue (train vocabulary)",
+            "catalogue_size": len(movie_vocab),
+            "evaluation": "full-catalogue scoring, no sampled negatives",
+            "selection_metric": f"val recall@{SELECT_K}",
+        },
     }
     (paths.artifacts_dir / "experiments.json").write_text(json.dumps(report, indent=2))
     logger.info("selected %s (val recall@%d %.4f vs baseline %.4f)",
@@ -206,8 +263,33 @@ def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False
     serving = export_serving_artifacts(paths, cfg, model, pop, split)
     results["serving"] = serving
 
+    # R4: serving-ready config — วัดด้วย coverage/latency ไม่ใช่ recall (experiment matrix บทที่ 6)
+    _record_run(
+        paths,
+        {
+            "run": "R4-serving",
+            "config": {"exclude_seen": True, "index": serving["index_type"]},
+            "test_coverage@10": results["two_tower"]["catalogue_coverage@10"],
+            "query_latency_ms_p95": serving["query_latency_ms_p95"],
+            "index_build_seconds": serving["index_build_seconds"],
+            "reload_consistent": serving["reload_consistent"],
+        },
+    )
+
     if with_sensitivity:
-        results["sensitivity_rating_ge_4"] = sensitivity_threshold(paths, cfg)
+        sensitivity = sensitivity_threshold(paths, cfg)
+        results["sensitivity_rating_ge_4"] = sensitivity
+        # R3: positive-interaction rule ที่เข้มขึ้น (rating >= 4) บน split ที่สร้างใหม่ทั้งชุด
+        _record_run(
+            paths,
+            {
+                "run": "R3-positive-ge4",
+                "config": {"positive_rating_threshold": 4.0, "model": "R1 config"},
+                "test_recall@10": sensitivity["recall@10"],
+                "test_recall@50": sensitivity["recall@50"],
+                "n_users_evaluated": sensitivity["n_users_evaluated"],
+            },
+        )
 
     results["generated_at"] = datetime.now(UTC).isoformat()
     (paths.artifacts_dir / "metrics.json").write_text(json.dumps(results, indent=2))
@@ -238,7 +320,10 @@ def export_serving_artifacts(
     sample_users = model.user_vocab[:20]
     before = index.recommend(np.array(sample_users, dtype=object), 10)["movie_ids"].numpy()
 
+    build_started = time.perf_counter()
     save_index(index, paths.index_dir)
+    index_build_seconds = time.perf_counter() - build_started
+
     reloaded = load_index(paths.index_dir)
     after = reloaded.recommend(
         np.array(sample_users, dtype=object), np.int32(10)
@@ -285,6 +370,7 @@ def export_serving_artifacts(
 
     return {
         "reload_consistent": reload_consistent,
+        "index_build_seconds": round(index_build_seconds, 3),
         "query_latency_ms_p50": round(float(np.percentile(latencies, 50)), 3),
         "query_latency_ms_p95": round(float(np.percentile(latencies, 95)), 3),
         "index_type": "brute_force_saved_model",

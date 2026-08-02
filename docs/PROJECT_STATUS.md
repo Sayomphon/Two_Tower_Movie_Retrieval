@@ -90,8 +90,8 @@
 | docx เขียน | ที่ทำจริง | เหตุผล |
 |---|---|---|
 | ใช้ TensorFlow Recommenders (TFRS) | เขียน in-batch sampled softmax เอง (pure TF/Keras 3) | TFRS อยู่ใน maintenance mode + ไม่ compat Keras 3 (ต้องใช้ legacy-Keras hack) — ดู `DEVELOPMENT_LOG.md` §2 |
-| `tests/test_recommendation_index.py` | `tests/test_index.py` (+ อีก 7 ไฟล์) | ครอบคลุมกว่า — 56 tests รวม leakage/security/metric |
-| `requirements.txt` | `pyproject.toml` + `requirements-lock.txt` | packaging มาตรฐานสมัยใหม่ + lock ที่ reproduce ได้แน่นอน |
+| `tests/test_recommendation_index.py` | `tests/test_index.py` (+ อีก 8 ไฟล์) | ครอบคลุมกว่า — 62 tests รวม leakage/security/metric |
+| `requirements.txt` | มีครบทั้ง 3 ไฟล์: `pyproject.toml` (ทางหลัก) + `requirements.txt` (ranges ตาม structure ของ blueprint) + `requirements-lock.txt` (pin เป๊ะ) | packaging มาตรฐานสมัยใหม่ แต่ไม่ทิ้งไฟล์ที่ผู้รีวิว/Colab คาดหวัง — README อธิบายว่าแต่ละไฟล์ใช้เมื่อไร |
 | Colab notebook อย่างเดียว | notebook + installable package (`src/`) | โค้ดหลัก testable/reusable, notebook เป็น narrative — ดีต่อ portfolio |
 
 > ทุก deviation ทำให้โปรเจค **ดีกว่าหรือเทียบเท่า** blueprint และบันทึกเหตุผลไว้ครบ
@@ -108,5 +108,5 @@
 | Coverage@10 | 0.054 | **0.893** |
 | Gini exposure | 0.986 | **0.477** |
 
-Serving latency p95 ≈ 0.2ms · reload consistent ✅ · OOV test items 0.2% ·
-sensitivity (rating≥4): ข้อสรุปไม่เปลี่ยน
+Serving latency p95 ≈ 1ms (laptop CPU, แกว่งตามโหลดเครื่อง) · index build 0.19s ·
+reload consistent ✅ · OOV test items 0.2% · sensitivity (rating≥4): ข้อสรุปไม่เปลี่ยน

@@ -62,6 +62,14 @@ class TwoTowerModel:
         self.user_embedding.build((None,))
         self.movie_embedding.build((None,))
 
+    @property
+    def n_parameters(self) -> int:
+        """ขนาดโมเดล = จำนวน weight ใน embedding table ทั้งสอง (รวมแถว OOV อย่างละ 1)"""
+        return int(
+            self.user_embedding.embeddings.shape.num_elements()
+            + self.movie_embedding.embeddings.shape.num_elements()
+        )
+
     # ---------------------------------------------------------------- towers
 
     def user_tower(self, user_ids: tf.Tensor) -> tf.Tensor:
