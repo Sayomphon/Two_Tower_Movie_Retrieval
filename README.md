@@ -115,6 +115,7 @@ SHA-256. It is **never committed** (MovieLens research-use terms prohibit redist
 ├── src/movie_retrieval/      # config, data, splits, baseline, model, evaluate, index, pipeline, cli
 ├── tests/                    # unit + integration tests (leakage, metrics, index reload, security)
 ├── notebooks/movielens_two_tower_retrieval.ipynb   # 19-section narrative notebook (executed)
+│   └── ..._Colab_Ran.ipynb   # same notebook, executed top-to-bottom on a clean Colab runtime
 ├── docs/                     # model card, development log, interview prep, project status
 ├── .github/workflows/ci.yml  # ruff + pytest on Python 3.11 / 3.12
 ├── artifacts/                # generated: model, index, vocab, metrics (gitignored)

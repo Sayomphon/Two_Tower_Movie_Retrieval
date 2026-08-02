@@ -3,8 +3,9 @@
 > อัปเดต: 2 สิงหาคม 2026 · เอกสารอ้างอิง: `05_movie_recommender_ai_engineering_plan.docx`
 > สรุปสั้น: **โค้ด + 62 tests + notebook (executed) + docs + CI ครบ และ push ขึ้น GitHub แล้ว**
 > ([Sayomphon/Two_Tower_Movie_Retrieval](https://github.com/Sayomphon/Two_Tower_Movie_Retrieval))
-> เหลือค้างข้อเดียวคือ **กด Run all บน Colab จริง** เพื่อปิด Definition of Done ข้อสุดท้าย
-> — bootstrap cell พร้อมแล้วและผ่านการจำลอง bare runtime บนเครื่อง แต่ยังไม่ได้รันบน Colab เอง
+> **Definition of Done ครบ 9/9** — ยืนยันบน Google Colab จริงแล้ว (Run all จาก runtime เปล่า
+> ผ่านทั้ง 21 code cells และได้ตัวเลข metric ตรงกับที่รันบน macOS เป๊ะทุกหลัก)
+> เหลือเฉพาะ stretch goals ซึ่ง docx ระบุว่าเป็น optional
 
 ---
 
@@ -15,7 +16,7 @@
 | 1 | Executive Summary | ✅ เสร็จ | `README.md` + notebook §01 |
 | 2 | Business Problem & Framing | ✅ เสร็จ | notebook §01, README "Problem" |
 | 3 | Dataset, Data Contract, Leakage | ✅ เสร็จ | `data.py` (SHA-256 + contract), `splits.py` (audit) |
-| 4 | Colab Environment & Reproducibility | 🟡 เกือบครบ | seed/version/lock ครบ · bootstrap cell (notebook §02) ติดตั้ง package เองบน runtime เปล่า · `requires-python` เปิดถึง `<3.14` ให้ Colab runtime ใหม่ติดตั้งได้ · **ยังไม่ได้กด Run all บน Colab จริง** |
+| 4 | Colab Environment & Reproducibility | ✅ เสร็จ | seed/version/lock ครบ · bootstrap cell (notebook §02) ติดตั้ง package เองบน runtime เปล่า · `requires-python` เปิดถึง `<3.14` · **Run all บน Colab ผ่านจริง** — หลักฐาน `notebooks/movielens_two_tower_retrieval_Colab_Ran.ipynb` (ดูข้อ 5) |
 | 5 | Detailed Notebook Blueprint (19 sections) | ✅ เสร็จ | notebook 47 cells execute ครบ พร้อม outputs/plots ฝังในไฟล์ |
 | 6 | Implementation Plan: Data to Model | ✅ เสร็จ | `model.py`, `baseline.py`, `experiments.json` มีครบ R0–R4 |
 | 7 | Evaluation, Testing, Error Analysis | ✅ เสร็จ | `evaluate.py` — Recall/NDCG/coverage/bias + slices · 62 tests |
@@ -24,10 +25,10 @@
 | 10 | GitHub Portfolio Packaging | ✅ เสร็จ | push ขึ้น GitHub แล้ว · `requirements.txt` ครบตาม structure · visual evidence 6/6 · CI badge |
 | 11 | Technical Interview Preparation | ✅ เสร็จ | `docs/interview_prep.md` — pitch 90 วินาที + 7 คำถามออกแบบ + คำถามยากจากผลจริง + deep-dive |
 | 12 | Trade-offs, Limitations, Stretch Goals | ✅ เสร็จ (core) | ตาราง trade-off ใน README/model_card — **stretch goals ยังไม่ทำ (optional ตาม docx)** |
-| 13 | Definition of Done | 🟡 8/9 | ค้างข้อ Colab ข้อเดียว (ดู checklist ข้อ 2) |
+| 13 | Definition of Done | ✅ 9/9 | ดู checklist ข้อ 2 |
 | 14 | Web References | ✅ เสร็จ | notebook "References" |
 
-**สรุป: 12/14 บทเสร็จสมบูรณ์ · บท 4 กับ 13 ค้างเรื่องเดียวกันคือการยืนยันบน Colab จริง**
+**สรุป: 14/14 บทเสร็จสมบูรณ์ · เหลือเฉพาะ stretch goals (บทที่ 12) ซึ่ง docx ระบุว่าเป็น optional**
 
 ---
 
@@ -41,7 +42,7 @@
 - [x] index/vocab/model reload + unknown-user fallback ผ่าน — `index.py` + tests
 - [x] recommendation examples + qualitative audit — notebook §15
 - [x] README แยก retrieval/ranking/online validation ชัดเจน — `README.md`
-- [ ] **Colab Run all ได้ภายใน timebox** — เหลือข้อเดียว (ดูข้อ 5)
+- [x] **Colab Run all ได้ภายใน timebox** — 2 ส.ค. 2026, Python 3.12.13 / TF 2.20.0, 21/21 cells, 0 errors (ดูข้อ 5)
 
 **Final run checklist:**
 - [x] Restart แล้ว Run all สำเร็จ (local — clean state rerun ได้เลขเป๊ะ)
@@ -73,11 +74,11 @@
 | Comparison table มี metric/latency/size/explainability | ✅ | notebook §11 |
 | Test: Top-K ห้ามมีหนังซ้ำ (3 ชั้น) | ✅ | `test_evaluate.py`, `test_baseline.py`, `test_index.py` — รวมเป็น 62 tests |
 | Visual evidence 6/6 | ✅ | long-tail §05 · split timeline §07 · comparison §11 · coverage+Lorenz §12 · embedding neighbours §15 · architecture (Mermaid) §18 + README |
-| Colab bootstrap cell | ✅ | notebook §02 cell แรก — clone + install เมื่อ import ไม่เจอ, no-op เมื่อรัน local |
+| Colab bootstrap cell | ✅ | notebook §02 cell แรก — clone + install เมื่อ import ไม่เจอ, no-op เมื่อรัน local · ยืนยันบน Colab จริงแล้ว (ข้อ 5) |
 | `docs/interview_prep.md` | ✅ | pitch + 7 คำถาม + คำถามยากจากผลจริง + deep-dive |
 | CI (GitHub Actions) | ✅ | `.github/workflows/ci.yml` — ruff + pytest บน Python 3.11/3.12, actions pin ด้วย commit SHA |
 
-**บันทึกการยืนยัน bootstrap cell — จำลอง bare runtime บนเครื่อง (ไม่ใช่ Colab จริง):**
+**บันทึกการยืนยัน bootstrap cell — จำลอง bare runtime บนเครื่อง (ก่อนขึ้น Colab):**
 
 | สิ่งที่ทดสอบ | วิธี | ผล |
 |---|---|---|
@@ -86,9 +87,6 @@
 | bootstrap เป็น no-op เมื่อรัน local | รันในเครื่องที่ติดตั้ง package แล้ว | ✅ พิมพ์ "already importable — bootstrap skipped" |
 | `Paths.default()` นอก checkout | ตรวจค่า `project root` ที่พิมพ์ออกมา | ✅ ชี้ไป working directory ปัจจุบันตามที่ออกแบบ |
 
-> **สิ่งที่การทดสอบนี้ยังไม่ครอบคลุม** (จึงยังไม่ติ๊ก DoD): Python/TensorFlow version จริงของ Colab,
-> ความเร็วเน็ตของ Colab runtime และพฤติกรรมเมื่อ TF ที่ติดมากับ Colab อยู่นอกช่วง `>=2.16,<2.21`
->
 > **บั๊กที่การทดสอบนี้จับได้:** ร่างแรกใช้ `pip install -e` แล้ว cell ถัดไป `ModuleNotFoundError`
 > เพราะ editable install ชี้ path ผ่าน `__editable__*.pth` ซึ่ง Python อ่านเฉพาะตอนเริ่ม interpreter
 > → `importlib.invalidate_caches()` ช่วยไม่ได้ · เปลี่ยนเป็น install แบบปกติจึงผ่าน
@@ -97,27 +95,40 @@
 
 ---
 
-## 5. เหลืออะไร
+## 5. ผลการยืนยันบน Google Colab (Definition of Done ข้อสุดท้าย) ✅
 
-### 🔴 ปิด Definition of Done ข้อสุดท้าย (ต้องทำโดยเจ้าของ repo — ใช้บัญชี Google)
+รันเมื่อ 2 สิงหาคม 2026 ผ่าน [Open in Colab](https://colab.research.google.com/github/Sayomphon/Two_Tower_Movie_Retrieval/blob/main/notebooks/movielens_two_tower_retrieval.ipynb)
+→ Restart session → Run all · ไฟล์ผลลัพธ์เก็บไว้เป็นหลักฐานที่
+`notebooks/movielens_two_tower_retrieval_Colab_Ran.ipynb`
 
-1. เปิด notebook บน Colab: [Open in Colab](https://colab.research.google.com/github/Sayomphon/Two_Tower_Movie_Retrieval/blob/main/notebooks/movielens_two_tower_retrieval.ipynb)
-2. Runtime → Restart runtime → **Run all** (ห้ามแก้ cell ด้วยมือ)
-3. คาดว่าใช้เวลา ~5–10 นาที (install ~2–3 น. + train 2 runs + eval + export)
-4. กรอกผลกลับมาที่ตารางนี้แล้วติ๊ก checklist ข้อ 9 ในข้อ 2
-
-| ช่องที่ต้องกรอกหลังรันจริง | ค่า |
+| รายการ | ค่าที่ได้ |
 |---|---|
-| วันที่ทดสอบ | _(รอกรอก)_ |
-| Colab Python / TensorFlow version | _(รอกรอก)_ |
-| เวลา end-to-end | _(รอกรอก)_ |
-| ผล Run all | _(รอกรอก)_ |
+| Environment | Python **3.12.13** · TensorFlow **2.20.0** · numpy 2.0.2 · pandas 2.2.2 · runtime GPU T4 |
+| Bootstrap | `bootstrapped movie_retrieval from /content/Two_Tower_Movie_Retrieval` — clone + install สำเร็จ **โดยไม่ต้อง restart** |
+| `project root` | `/content` (ตามที่ออกแบบไว้เมื่อรันนอก checkout) |
+| ผล Run all | ✅ **21/21 code cells, 0 errors**, execution_count เรียง 1→21 (รันรวดเดียวจริง ไม่มีรันข้าม) |
+| แก้ cell ด้วยมือหรือไม่ | ❌ ไม่มี — diff source ทั้ง 47 cells กับไฟล์ใน repo แล้วเหมือนกันทุกตัวอักษร |
+| เวลา end-to-end | ไม่ได้บันทึก (ไฟล์ที่ได้จาก Colab ไม่มี `executionInfo` timing) |
 
-> ถ้าติดปัญหา: อาการที่เป็นไปได้คือ Colab มี TensorFlow เวอร์ชันนอกช่วง `>=2.16,<2.21`
-> ทำให้ pip ถอน/ลงใหม่และใช้เวลานาน — แก้โดยขยาย upper bound ใน `pyproject.toml`
-> แล้วรัน `pytest` ยืนยันซ้ำก่อน commit **ห้าม hardcode token ใด ๆ ใน notebook เด็ดขาด**
+**Cross-platform reproducibility — จุดที่มีค่าที่สุดของการทดสอบนี้:**
+Colab (Linux x86-64, Python 3.12, GPU T4) ให้ตัวเลขเดียวกับ macOS arm64 / Python 3.11 **ทุกหลัก**
 
-### 🟢 Optional (Stretch goals — docx บทที่ 12, ทำเมื่อมีเวลา)
+| | Colab | macOS (ค่าที่รายงานใน repo) |
+|---|---|---|
+| val recall@10 R1 / R2 | 0.0541 / 0.0424 | 0.0541 / 0.0424 |
+| test recall@10 pop / two-tower | 0.0657 / 0.0583 | 0.0657 / 0.0583 |
+| test recall@50 pop / two-tower | 0.1835 / 0.2312 | 0.1835 / 0.2312 |
+| coverage@10 pop / two-tower | 0.0542 / 0.8928 | 0.0542 / 0.8928 |
+| Gini exposure pop / two-tower | 0.9855 / 0.4774 | 0.9855 / 0.4774 |
+| sensitivity (rating ≥ 4) recall@10 / @50 | 0.0608 / 0.2186 | 0.0608 / 0.2186 |
+| `reload_consistent` | true | true |
+
+ค่าที่ **ต่างกันโดยชอบธรรม** เพราะเป็น machine-dependent ไม่ใช่ regression:
+query latency p95 2.938 ms (Colab) vs 1.097 ms (laptop) · index build 0.198 s vs 0.192 s ·
+`query_ms` ในตาราง §11 6.0–6.3 ms (Colab) vs ~1 ms — เอกสารระบุไว้ตั้งแต่ต้นว่า latency
+ขึ้นกับเครื่องและโหลด ส่วน metric ทุกตัวเป็น deterministic ด้วย seed 42
+
+### 🟢 เหลือเฉพาะ Optional (Stretch goals — docx บทที่ 12, ทำเมื่อมีเวลา)
 
 เรียงตาม impact ต่อ portfolio · docx ระบุ scope guardrail ว่าให้เลือก **ข้อเดียวทำให้จบ**
 พร้อม test + เอกสาร ดีกว่าทำครึ่ง ๆ หลายข้อ
