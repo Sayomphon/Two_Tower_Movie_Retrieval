@@ -50,7 +50,11 @@
 
 ### 1.5 Notebook + Docs
 - `notebooks/movielens_two_tower_retrieval.ipynb` — 19 sections ตาม blueprint บทที่ 5,
-  **execute จริงครบทุก cell** (42 cells) พร้อม outputs/plots ฝังในไฟล์
+  **execute จริงครบทุก cell** (46 cells) พร้อม outputs/plots ฝังในไฟล์
+- **Visual evidence ครบ 6/6** ตาม blueprint บทที่ 10: long-tail EDA (§05), temporal split
+  timeline + gap audit ของทั้ง 943 users (§07), comparison table (§11), final metrics table
+  คู่กับ coverage/Lorenz chart (§12), embedding neighbours (§15) และ production architecture
+  เป็น Mermaid (§18 + หน้าแรกของ README ให้ recruiter อ่านได้โดยไม่ต้องเปิด notebook)
 - `README.md` — Problem → Approach → Result → Key decisions → Limitations (recruiter-first)
 - `docs/model_card.md` — intended use, data terms, metrics, cold-start policy, ethics
 - ไฟล์นี้ — development log
@@ -80,6 +84,15 @@
    order สำหรับ id ตัวเลข
 3. **sed rename side effect** — rename `_val_recall` → `val_recall` ไปโดน key string
    `selected_val_recall@10` ใน report ด้วย → แก้กลับ (บทเรียน: ระวัง sed กับ substring)
+4. **เกือบ over-claim เรื่อง temporal split** — ร่างแรกของ split diagram (§07) จะเขียนว่า
+   "val/test อยู่หลัง train เสมอ" แต่ตรวจข้อมูลจริงก่อนวาดพบว่า **422/943 users มี val
+   timestamp เท่ากับ interaction สุดท้ายของ train เป๊ะ** (ML-100K ละเอียดระดับวินาที คนเดียว
+   เรตหลายเรื่องรวดเดียว) ซึ่งตรงกับที่ `audit_no_leakage` ยืนยันแค่ `train ≤ val ≤ test`
+   และตัด tie ด้วย `movie_id` → เปลี่ยนภาพเป็นสอง panel (timeline + สัดส่วน gap ทั้ง
+   population) และเขียนคำอธิบายตามความจริง (บทเรียน: ตรวจข้อมูลก่อนเขียน caption)
+5. **ตัวเลขในเอกสารปัดผิด** — README/DEVELOPMENT_LOG เขียน recall@50 ของ popularity เป็น
+   0.184 ทั้งที่ค่าจริงคือ 0.18346 (ปัด 3 ตำแหน่ง = 0.183) → เจอเพราะเขียน gate
+   เทียบทุกตัวเลขในเอกสารกับ `artifacts/metrics.json` แบบอัตโนมัติ ไม่ใช่ไล่อ่านเอง
 
 ## 4. Security measures
 
@@ -94,7 +107,7 @@
 
 - **Popularity ชนะที่ K=10** (recall 0.066 vs 0.058) — คาดการณ์ได้สำหรับ ID-only model
   บน temporal split ขนาดเล็ก และ blueprint สั่งให้รายงานตรงไปตรงมา
-- **Two-tower ชนะที่ K=50** (0.231 vs 0.184) — regime ที่ retrieval stage ใช้จริง
+- **Two-tower ชนะที่ K=50** (0.231 vs 0.183) — regime ที่ retrieval stage ใช้จริง
 - **Coverage 89.3% vs 5.4%** และ top-10%-popular share 6.3% vs 100% — จุดแข็งที่แท้จริง
 - Slices: model แข็งสุดที่ long-tail items (2.6× head) และ low-activity users
 - Sensitivity rating≥4: ข้อสรุปไม่เปลี่ยน (0.061 / 0.219)

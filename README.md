@@ -39,13 +39,37 @@ ratings ──► data contract ──► temporal split (audited) ──► pop
   export time, input validation, seen-item filtering, and `model_version`/`index_version`
   stamped into every response.
 
+## Where this sits in a production recommender
+
+```mermaid
+flowchart LR
+    ES[Event stream<br/>clicks / watches / ratings] --> FS[(Feature &<br/>history store)]
+    FS --> UT[User tower<br/>→ query vector]
+    FS -. nightly retrain .-> TT[Two-tower training]
+    TT --> IT[Item tower] --> IDX[(ANN candidate index<br/>MVP: BruteForce SavedModel)]
+    UT --> IDX
+    IDX --> F[Seen-item &<br/>business/safety filters]
+    F --> R[Ranking stage<br/>out of MVP scope]
+    R --> UI[UI exposure]
+    UI --> FB[Feedback / labels] --> ES
+
+    classDef mvp fill:#dbeafe,stroke:#2563eb;
+    classDef out fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:4 3;
+    class UT,IT,IDX,F,TT mvp
+    class R,UI out
+```
+
+*Blue = built here · dashed grey = designed but outside the 10-hour scope.* The arrow from
+exposure back to the event stream is why coverage and popularity bias are tracked as
+first-class metrics: today's recommendations become tomorrow's training labels.
+
 ## Results (temporal test set, 943 users, full-catalogue scoring)
 
 | metric @10 | popularity (R0) | two-tower (R1) |
 |---|---|---|
 | Recall@10 | **0.066** | 0.058 |
 | NDCG@10 | **0.033** | 0.027 |
-| Recall@50 | 0.184 | **0.231** |
+| Recall@50 | 0.183 | **0.231** |
 | Catalogue coverage@10 | 5.4% | **89.3%** |
 | Top-10%-popular share of slots | 100% | **6.3%** |
 | Gini exposure | 0.99 | **0.48** |
