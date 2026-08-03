@@ -161,8 +161,7 @@ nothing is uploaded and no dataset is bundled.
 ├── tests/                    # unit + integration tests (leakage, metrics, index reload, security)
 ├── notebooks/movielens_two_tower_retrieval.ipynb   # 19-section narrative notebook (executed)
 │   └── ..._Colab_Ran.ipynb   # same notebook, executed top-to-bottom on a clean Colab runtime
-├── docs/                     # model card, development log, interview prep, project status
-│   └── img/                  # plots exported from the notebook for this README
+├── docs/img/                 # plots exported from the notebook for this README
 ├── .github/workflows/ci.yml  # ruff + pytest on Python 3.11 / 3.12
 ├── artifacts/                # generated: model, index, vocab, metrics (gitignored)
 ├── requirements.txt          # runtime + notebook dependency ranges
@@ -185,14 +184,18 @@ nothing is uploaded and no dataset is bundled.
 6. **Security hygiene** — HTTPS + pinned SHA-256 download, zip-slip-safe extraction,
    input validation at the serving API, no secrets/data in the repo.
 
-## Interview notes
+## Model card
 
-[`docs/interview_prep.md`](docs/interview_prep.md) — a 90-second pitch, the seven standard
-retrieval design questions (retrieval vs ranking, why not RMSE, temporal splits, negative
-sampling, cold start, brute force vs ANN, limits of offline scoring), and the harder ones
-*this* project's results invite: why the popularity baseline wins at K=10, whether that gap
-is even significant, and what would actually close it. Every figure quoted there comes from
-the same run as the tables above.
+| | |
+|---|---|
+| Model | `ml100k-retrieval-v1` — two-tower, dim-32 ID embeddings, dot-product affinity, in-batch sampled softmax (SUM reduction) with accidental-hit masking |
+| Training | Adagrad lr 0.1, 15 epochs, batch 256, seed 42 · TensorFlow 2.20 / Keras 3, no TFRS |
+| Selection | R1 (dim 32) over R2 (dim 64 + L2) on **validation** Recall@10; the test set is scored once, after every decision |
+| Data | MovieLens 100K — 100,000 ratings, 943 users, 1,682 movies, collected 1997–1998; every rating counts as an interaction (`rating ≥ 4` reported as a sensitivity check) |
+| Intended use | Portfolio and education — demonstrating retrieval-stage methodology |
+| Out of scope | Commercial or production use (prohibited by the MovieLens terms), ranking, and any setting where recommendations could cause harm without human curation |
+| Cold start | Unknown user → popularity Top-K with `fallback_used: true` in the response; unknown movie → not retrievable at all, which is the limitation a content tower would fix |
+| Known risks | Retrieval trained on logged interactions amplifies exposure bias — the reason coverage and Gini are tracked as first-class metrics; there is no content-safety layer; behavioural data is personal data even when de-identified |
 
 ## Limitations
 

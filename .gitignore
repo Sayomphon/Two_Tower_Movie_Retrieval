@@ -43,7 +43,11 @@ htmlcov/
 *.key
 credentials*.json
 
-# Internal planning documents — เก็บเป็นส่วนตัว ไม่เผยแพร่ใน public repo
+# Internal planning + working documents — เก็บเป็นส่วนตัว ไม่เผยแพร่ใน public repo
 *.docx
 docs/COMPLETION_PLAN.md
 docs/IMPROVEMENT_PLAN.md
+docs/DEVELOPMENT_LOG.md
+docs/PROJECT_STATUS.md
+docs/interview_prep.md
+docs/model_card.md
