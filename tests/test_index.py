@@ -97,6 +97,11 @@ class TestRetrievalService:
         assert response["strategy"] == "popularity_fallback"
         assert response["recommendations"][0]["movie_id"] == "m1"
 
+    def test_seen_titles_are_deterministic(self, service):
+        assert service.seen_titles("u1") == ["Movie Three"]
+        assert service.seen_titles("u1", limit=0) == []
+        assert service.seen_titles("nobody") == []
+
     @pytest.mark.parametrize("bad_user", ["", "a" * 65, "user id", "u1; DROP TABLE", "x/../y"])
     def test_invalid_user_id_rejected(self, service, bad_user):
         with pytest.raises(ValueError, match="user_id"):

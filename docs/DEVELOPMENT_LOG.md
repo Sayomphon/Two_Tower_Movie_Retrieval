@@ -36,8 +36,9 @@
 | `index.py` | BruteForce index เป็น SavedModel (pure TF ops — ไม่ผูก Keras version), unknown-user fallback → popularity, `RetrievalService` พร้อม input validation |
 | `pipeline.py` | orchestration: prepare → train (เลือก model จาก val) → evaluate (test ครั้งเดียว) → export artifacts |
 | `cli.py` | `movie-retrieval prepare/train/evaluate/all/recommend` |
+| `demo.py` | Gradio UI บน `RetrievalService` เดิม (optional dependency — `import gradio` อยู่ข้างใน `build_demo()` เท่านั้น) |
 
-### 1.3 Tests (71 ตัว — ผ่านทั้งหมด)
+### 1.3 Tests (101 ตัว — ผ่านทั้งหมด)
 - **Leakage tests**: temporal ordering ต่อ user, test user ไร้ train history ต้อง fail,
   poisoned split ต้อง raise `LeakageError`
 - **Metric correctness**: เทียบค่า Recall/NDCG/Gini ที่คำนวณมือ
@@ -51,6 +52,10 @@
   pipeline ทั้งหมด ไม่แตะ network/artifacts) — จุดที่พลาดง่ายสุดคือ `--include-seen`
   ที่ถูกกลับด้านเป็น `exclude_seen` ก่อนส่งต่อ
 - **Integration test**: รัน prepare บน ml-100k จริงใน tmp dir (skip อัตโนมัติถ้าไม่มีไฟล์)
+- **Demo UI tests**: สิ่งที่ผู้ใช้เห็นบนหน้าจอ (ผลลัพธ์ / status badge / ประวัติ / stat chips)
+  ทดสอบได้โดยไม่ต้องติดตั้ง gradio เพราะ logic แยกจาก UI wiring — คุมสองเรื่องหลักคือ
+  input แปลก ๆ ต้องกลายเป็นข้อความบอกผู้ใช้ไม่ใช่ exception และ **ทุกค่าที่มาจากข้อมูล
+  ต้องถูก escape** (ชื่อหนังที่เป็น `<script>` ต้องออกมาเป็น text ไม่ใช่ tag)
 
 ### 1.4 รัน pipeline จริง + ผลลัพธ์
 - `movie-retrieval all --sensitivity` สำเร็จ (exit 0)
@@ -90,6 +95,27 @@
   กับไฟล์ใน repo แล้วเหมือนกันทุกตัวอักษร) และได้ metric ตรงกับที่รันบน macOS arm64/Python 3.11
   ทุกหลัก — หลักฐานอยู่ที่ `notebooks/movielens_two_tower_retrieval_Colab_Ran.ipynb`
   ส่วน latency ต่างกันตามเครื่อง (p95 2.94 ms vs 1.10 ms) ซึ่งเอกสารระบุไว้แต่แรกว่าไม่ deterministic
+
+### 1.7 Interactive demo (Gradio)
+- `app.py` + `movie_retrieval/demo.py` — พิมพ์ user id แล้วเห็น Top-K จาก **serving index จริง**
+  (`RetrievalService` ตัวเดียวกับ CLI, artifacts ชุดเดียวกัน) พร้อมปุ่มตัวอย่างที่คลิกเดียวเห็นผล
+  และเปิดหน้ามาก็มีผลของ user 42 แสดงอยู่แล้ว
+- แยกชั้นชัดเจน: ฟังก์ชันที่แปลง response → ตาราง/สถานะ/ประวัติ เป็น pure function ทดสอบได้
+  ส่วน `import gradio` อยู่ข้างใน `build_demo()`/`main()` — คนที่ใช้แค่ library/CLI ไม่ต้องโหลด UI stack
+- Security: ใช้ validation ของ service เดิม (regex user_id, `k ∈ [1,100]`) แล้วแปลง `ValueError`
+  เป็นข้อความบนหน้าจอ · `analytics_enabled=False` (ไม่ส่ง telemetry) · `api_open=False` ·
+  จำกัดคิว 32 · **ไม่มี `share=True`** และไม่มีช่องอัปโหลดไฟล์ใด ๆ
+- ผลลัพธ์ render เป็น HTML ที่เขียนเอง ไม่ใช่ `gr.Dataframe` — Dataframe ใช้ฟอนต์ monospace
+  อ่านชื่อหนังยาว ๆ ลำบาก และลาก affordance ที่ demo อ่านอย่างเดียวไม่ควรมีมาด้วย (import CSV,
+  edit cell) · แต่ละแถวมี **score bar** ที่ normalize ด้วย min/max ภายใน response เดียว
+  (คะแนน dot product กับ popularity count เทียบกันตรง ๆ ไม่ได้) — บอก "ห่างกันแค่ไหนในลิสต์นี้"
+- hero มี **stat chip อ่านจาก `metrics.json` จริง** (Recall@50 / Coverage@10 / p95 / ขนาด catalogue)
+  อ่านครั้งเดียวตอน start ไม่แตะ disk ต่อ request · ถ้าไฟล์หายก็แค่ไม่มี chip ไม่ใช่หน้าพัง
+- สีทุกค่าอ้าง CSS variable ของ Gradio (`--body-text-color`, `--border-color-primary`, …)
+  → dark mode ใช้ได้ทันทีโดยไม่ต้องเขียน CSS สองชุด · ตรวจแล้วทั้ง light และ dark
+- **แลกความปลอดภัยกลับมาด้วย escape:** `gr.HTML` ไม่ sanitize ให้ ดังนั้นชื่อหนัง / version /
+  ข้อความ error ผ่าน `html.escape()` ทุกจุด, ความกว้าง bar ถูก format เป็นตัวเลขก่อนเข้า `style`
+  และ `tone` ของ badge มาจากชุดค่าคงที่ในโค้ดเท่านั้น — มี test คุมทั้งสามข้อ
 
 ---
 
@@ -168,5 +194,5 @@ python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 movie-retrieval all --sensitivity   # ~2 นาทีบน CPU
 movie-retrieval recommend --user-id 42 --k 10
-pytest                              # 71 tests
+pytest                              # 101 tests
 ```

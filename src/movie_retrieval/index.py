@@ -132,6 +132,20 @@ class RetrievalService:
             catalogue_size=len(vocab["movie_vocab"]),
         )
 
+    @property
+    def catalogue_size(self) -> int:
+        """จำนวนหนังที่ index ค้นได้ (train vocabulary)"""
+        return self._catalogue_size
+
+    def seen_titles(self, user_id: str, limit: int | None = None) -> list[str]:
+        """หนังที่ user เคยมี interaction แล้ว — เรียงตามชื่อเพื่อให้ผลลัพธ์ deterministic
+
+        ใช้แสดงบริบทคู่กับ recommendation (UI/debug): seen_items เก็บเป็น set
+        จึงไม่มีลำดับเวลา — ห้ามนำไปเรียกว่า "หนังที่ดูล่าสุด"
+        """
+        titles = sorted(self._titles.get(m, m) for m in self._seen.get(user_id, ()))
+        return titles[:limit] if limit is not None else titles
+
     def recommend(self, user_id: str, k: int = 10, exclude_seen: bool = True) -> dict:
         # ---- input validation (ป้องกัน abuse/typo ก่อนแตะ index) ----
         if not isinstance(user_id, str) or not _USER_ID_PATTERN.match(user_id):

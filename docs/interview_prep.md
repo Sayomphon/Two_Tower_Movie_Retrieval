@@ -38,7 +38,7 @@
 | Slices Recall@10 | tail items 0.0723 vs head 0.0273 (**2.6×**) · low-activity users 0.0841 vs high 0.0287 |
 | OOV test items | 0.21% (รายงาน ไม่ silently drop) |
 | Sensitivity (rating ≥ 4) | Recall@10 0.0608 · Recall@50 0.2186 → ข้อสรุปไม่เปลี่ยน |
-| Tests | 71 tests (leakage / metric / security / index reload / no-duplicate) |
+| Tests | 101 tests (leakage / metric / security / index reload / no-duplicate) |
 
 ---
 
@@ -59,7 +59,7 @@
 > K=50 (0.231 vs 0.183) ซึ่งเป็น regime จริงของ retrieval และให้ coverage 89% เทียบกับ 5%
 > ของ baseline — ผมรายงานผลตามที่มันเป็น พร้อม slice ที่ชี้ว่าโมเดลแข็งตรงไหน (long-tail 2.6×)
 > ปิดท้ายด้วย serving index เป็น SavedModel ที่ตรวจ reload consistency ก่อน export, มี seen filter,
-> cold-start fallback, input validation และ 71 tests
+> cold-start fallback, input validation และ 101 tests
 
 **English**
 
@@ -75,7 +75,7 @@
 > (0.066 vs 0.058), while the two-tower model wins at K=50 (0.231 vs 0.183) — the regime a
 > retrieval stage actually operates in — with 89% catalogue coverage against 5%, and 2.6×
 > higher recall on long-tail items. It ships as a reload-verified SavedModel index with
-> seen-item filtering, a cold-start fallback, input validation, and 71 tests.
+> seen-item filtering, a cold-start fallback, input validation, and 101 tests.
 
 **กติกาเวลาพูด:** อย่าเลี่ยงผลที่แพ้ — พูดออกมาเองตั้งแต่ต้น แล้วอธิบายว่าทำไมยังเป็นผลที่ใช้ได้
 คนสัมภาษณ์ให้คะแนน "รู้ตัวว่าผลแปลว่าอะไร" มากกว่า "ตัวเลขสวย"

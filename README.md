@@ -8,7 +8,7 @@ built end-to-end with production-style engineering discipline: temporal evaluati
 leakage audits, a popularity baseline, bias/coverage guardrails, and an exportable,
 version-stamped serving index with a cold-start fallback.
 
-`Python 3.11–3.13` · `TensorFlow 2.20 / Keras 3` · no TFRS · 71 tests · CI on 3.11 + 3.12 ·
+`Python 3.11–3.13` · `TensorFlow 2.20 / Keras 3` · no TFRS · 101 tests · CI on 3.11 + 3.12 ·
 Colab-verified · MIT
 
 > **Portfolio project** — demonstrates the *retrieval* stage of a modern recommender
@@ -124,7 +124,7 @@ pip install -e ".[dev]"                # package + CLI + test/notebook tooling
 
 movie-retrieval all --sensitivity      # download → validate → split → train → evaluate → export
 movie-retrieval recommend --user-id 42 --k 10
-pytest                                 # 71 tests incl. leakage & zip-slip guards
+pytest                                 # 101 tests incl. leakage & zip-slip guards
 pytest --cov --cov-fail-under=65       # the coverage gate CI enforces on every push
 ```
 
@@ -139,10 +139,25 @@ Three dependency files, three different jobs — complements, not duplicates:
 The dataset (~5 MB) is downloaded at runtime from GroupLens and verified against a pinned
 SHA-256. It is **never committed** (MovieLens research-use terms prohibit redistribution).
 
+## Try the retrieval index yourself
+
+```bash
+pip install -e ".[demo]"               # adds Gradio; the library and CLI don't need it
+python app.py                          # http://127.0.0.1:7860
+```
+
+A small UI over the exported index: type a user id, get the Top-K candidates a ranking stage
+would receive. It calls the same `RetrievalService` as the CLI on the same artifacts, so the
+input validation, seen-item filtering and cold-start fallback are the real ones — enter an id
+outside the training vocabulary (`brand-new-user`) and the response switches to the popularity
+fallback in front of you. Requires `movie-retrieval all` to have produced the artifacts first;
+nothing is uploaded and no dataset is bundled.
+
 ## Repository layout
 
 ```
-├── src/movie_retrieval/      # config, data, splits, baseline, model, evaluate, index, pipeline, cli
+├── src/movie_retrieval/      # config, data, splits, baseline, model, evaluate, index, pipeline, cli, demo
+├── app.py                    # entry point for the Gradio demo over the exported index
 ├── tests/                    # unit + integration tests (leakage, metrics, index reload, security)
 ├── notebooks/movielens_two_tower_retrieval.ipynb   # 19-section narrative notebook (executed)
 │   └── ..._Colab_Ran.ipynb   # same notebook, executed top-to-bottom on a clean Colab runtime

@@ -46,3 +46,4 @@ credentials*.json
 # Internal planning documents — เก็บเป็นส่วนตัว ไม่เผยแพร่ใน public repo
 *.docx
 docs/COMPLETION_PLAN.md
+docs/IMPROVEMENT_PLAN.md

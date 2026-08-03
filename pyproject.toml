@@ -17,6 +17,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# UI stack แยกจาก runtime deps — คนที่ใช้แค่ library/CLI ไม่ต้องโหลด gradio
+demo = ["gradio>=6,<7"]
 dev = [
     "pytest>=8,<9",
     "pytest-cov>=5",
