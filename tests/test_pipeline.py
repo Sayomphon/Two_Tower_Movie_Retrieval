@@ -1,4 +1,4 @@
-"""Experiment-log bookkeeping tests — เขียน run กลับเข้า experiments.json ต้อง idempotent"""
+"""Experiment-log bookkeeping tests — writing a run back into experiments.json must be idempotent"""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _runs(paths: Paths) -> list[dict]:
 
 class TestRecordRun:
     def test_appends_new_runs_in_matrix_order(self, paths):
-        # R4 ถูกบันทึกก่อน R0 — ไฟล์ยังต้องอ่านเรียงเป็น experiment matrix
+        # R4 is recorded before R0 — the file must still read in experiment-matrix order
         _record_run(paths, {"run": "R4-serving", "reload_consistent": True})
         _record_run(paths, {"run": "R0-popularity", "val_recall@10": 0.06})
         assert [r["run"] for r in _runs(paths)] == ["R0-popularity", "R1-dim32", "R4-serving"]
@@ -37,7 +37,7 @@ class TestRecordRun:
 
         runs = _runs(paths)
         assert [r["run"] for r in runs] == ["R1-dim32", "R4-serving"]
-        assert runs[-1]["query_latency_ms_p95"] == 0.2  # ค่าล่าสุดชนะ ไม่ใช่สะสมสองแถว
+        assert runs[-1]["query_latency_ms_p95"] == 0.2  # latest value wins, no two accumulated rows
 
     def test_missing_log_reports_actionable_error(self, paths):
         (paths.artifacts_dir / "experiments.json").unlink()

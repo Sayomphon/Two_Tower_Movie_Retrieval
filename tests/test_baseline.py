@@ -10,7 +10,7 @@ from movie_retrieval.baseline import PopularityRecommender
 
 @pytest.fixture
 def train_df() -> pd.DataFrame:
-    # ความนิยม: m1 x3, m2 x2, m3 x1
+    # popularity: m1 x3, m2 x2, m3 x1
     rows = [
         ("u1", "m1"), ("u2", "m1"), ("u3", "m1"),
         ("u1", "m2"), ("u2", "m2"),
@@ -41,7 +41,7 @@ class TestPopularityRecommender:
         assert len(recs) == len(set(recs))
 
     def test_deterministic_tie_break(self):
-        # m2 และ m1 count เท่ากัน → เรียงตาม movie_id
+        # m2 and m1 have equal counts → ordered by movie_id
         df = pd.DataFrame([("u1", "m2"), ("u2", "m1")], columns=["user_id", "movie_id"])
         pop = PopularityRecommender().fit(df)
         assert pop.top_items(2) == ["m1", "m2"]

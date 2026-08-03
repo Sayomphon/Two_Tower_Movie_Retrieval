@@ -1,8 +1,8 @@
 """Configuration dataclasses + JSON persistence.
 
-ทุก design decision ที่กระทบผลลัพธ์ (split rule, positive-interaction rule,
-hyperparameters) ถูก declare ที่นี่และ serialize ลง artifacts/split_config.json
-เพื่อให้ reproduce และ audit ได้เสมอ
+Every design decision that affects results (split rule, positive-interaction rule,
+hyperparameters) is declared here and serialized to artifacts/split_config.json
+so that runs stay reproducible and auditable.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ MODEL_VERSION = "ml100k-retrieval-v1"
 
 
 def find_project_root(start: Path | None = None) -> Path:
-    """เดินขึ้นจาก cwd จนเจอ pyproject.toml เพื่อหา repo root (รองรับรันจาก notebooks/)."""
+    """Walk up from cwd until pyproject.toml is found (supports running from notebooks/)."""
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
         if (candidate / "pyproject.toml").exists():
@@ -25,7 +25,7 @@ def find_project_root(start: Path | None = None) -> Path:
 
 @dataclass(frozen=True)
 class Paths:
-    """โครงสร้างไฟล์ทั้งหมดของโปรเจค — data/ และ artifacts/ อยู่ใน .gitignore"""
+    """Every file location in the project — data/ and artifacts/ are gitignored"""
 
     root: Path
 
@@ -60,19 +60,19 @@ class Paths:
 
 @dataclass(frozen=True)
 class SplitConfig:
-    """Temporal leave-last-k-out split ต่อ user.
+    """Per-user temporal leave-last-k-out split.
 
-    - test  = interaction ล่าสุดของแต่ละ user (k_test รายการ)
-    - val   = interaction ก่อนหน้า test (k_val รายการ)
-    - train = ที่เหลือทั้งหมด
-    users ที่มี history < min_history จะถูกตัดออกทั้งหมด (declared policy)
+    - test  = each user's most recent interactions (k_test of them)
+    - val   = the interactions just before test (k_val of them)
+    - train = everything else
+    Users with history < min_history are dropped entirely (declared policy)
     """
 
     k_test: int = 1
     k_val: int = 1
     min_train: int = 3
-    # positive-interaction rule: None = ใช้ทุก rating เป็น interaction,
-    # หรือกำหนด threshold เช่น 4.0 = เฉพาะ rating >= 4 เป็น positive
+    # positive-interaction rule: None = every rating counts as an interaction,
+    # or set a threshold, e.g. 4.0 = only rating >= 4 counts as positive
     positive_rating_threshold: float | None = None
     seed: int = 42
 
@@ -83,10 +83,10 @@ class SplitConfig:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    """Two-tower hyperparameters — ค่า default คือ run หลัก (R1) ตาม experiment matrix."""
+    """Two-tower hyperparameters — defaults are the main run (R1) in the experiment matrix."""
 
     embedding_dim: int = 32
-    learning_rate: float = 0.1  # Adagrad — มาตรฐานสำหรับ sparse embedding retrieval
+    learning_rate: float = 0.1  # Adagrad — standard for sparse embedding retrieval
     epochs: int = 15
     batch_size: int = 256
     l2_regularization: float = 0.0

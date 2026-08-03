@@ -1,4 +1,4 @@
-"""Temporal split + leakage audit tests — invariant สำคัญที่สุดของโปรเจค"""
+"""Temporal split + leakage audit tests — the project's most important invariant"""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ CFG = SplitConfig(k_test=1, k_val=1, min_train=3)
 class TestTemporalSplit:
     def test_latest_interaction_goes_to_test(self, synthetic_ratings):
         split = temporal_leave_last_k(synthetic_ratings, CFG)
-        # interaction ล่าสุดของทุก user คือ m6 (timestamp สูงสุด)
+        # every user's most recent interaction is m6 (highest timestamp)
         assert (split.test["movie_id"] == "m6").all()
         assert (split.val["movie_id"] == "m5").all()
 
@@ -40,12 +40,13 @@ class TestTemporalSplit:
 
     def test_split_sizes(self, synthetic_ratings):
         split = temporal_leave_last_k(synthetic_ratings, CFG)
-        assert split.summary()["n_test"] == 5  # 5 users ที่เหลือ x k_test=1
+        assert split.summary()["n_test"] == 5  # the 5 remaining users x k_test=1
         assert split.summary()["n_val"] == 5
         assert split.summary()["n_train"] == 20  # 5 users x 4
 
     def test_deterministic_with_timestamp_ties(self):
-        """interaction ที่ timestamp ชนกันต้องแบ่งเหมือนเดิมทุกครั้ง (tie-break ด้วย movie_id)"""
+        """Interactions with colliding timestamps must split the same way every time
+        (tie-break by movie_id)"""
         rows = [
             {"user_id": "u1", "movie_id": m, "rating": 3.0, "timestamp": 100}
             for m in ["m3", "m1", "m2", "m5", "m4", "m6"]
@@ -60,7 +61,7 @@ class TestTemporalSplit:
 class TestLeakageAudit:
     def test_future_leakage_raises(self, synthetic_ratings):
         split = temporal_leave_last_k(synthetic_ratings, CFG)
-        # จำลอง bug: ย้าย test row (อนาคต) เข้า train
+        # simulate a bug: move a test row (the future) into train
         poisoned = SplitResult(
             train=pd.concat([split.train, split.test]),
             val=split.val,
@@ -87,4 +88,4 @@ class TestSeenItemsMap:
         split = temporal_leave_last_k(synthetic_ratings, CFG)
         seen = seen_items_map(split.train, split.val)
         assert seen["u1"] == {"m1", "m2", "m3", "m4", "m5"}
-        assert "m6" not in seen["u1"]  # test item ต้องไม่ถูกนับว่า seen
+        assert "m6" not in seen["u1"]  # a test item must never count as seen

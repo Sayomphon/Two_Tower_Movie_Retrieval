@@ -1,12 +1,12 @@
-"""Global popularity baseline (R0 ใน experiment matrix).
+"""Global popularity baseline (R0 in the experiment matrix).
 
-กติกาสำคัญ:
-- popularity counts มาจาก train เท่านั้น (ห้ามเห็น val/test)
-- exclude seen items ของแต่ละ user ก่อนคืน Top-K
-- deterministic: ties ใน count ตัดสินด้วย movie_id
+Ground rules:
+- popularity counts come from train only (never sees val/test)
+- exclude each user's seen items before returning Top-K
+- deterministic: ties in count are broken by movie_id
 
-Recommender ใดๆ ในโปรเจคนี้ต้องคืน dict[user_id, list[movie_id]] (เรียงจากดีสุด)
-เพื่อให้ evaluate ด้วย evaluator ตัวเดียวกันได้ทั้ง baseline และ two-tower
+Every recommender in this project must return dict[user_id, list[movie_id]]
+(best first) so that baseline and two-tower are scored by the same evaluator.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import pandas as pd
 
 
 class PopularityRecommender:
-    """แนะนำหนังตามจำนวน interaction ใน train (non-personalized)"""
+    """Recommend movies by interaction count in train (non-personalized)"""
 
     def __init__(self) -> None:
         self._ranked_items: list[str] = []
@@ -27,7 +27,7 @@ class PopularityRecommender:
             .size()
             .rename("count")
             .reset_index()
-            # count มาก่อน (desc), movie_id ตัดสิน ties (asc) — deterministic
+            # count first (desc), movie_id breaks ties (asc) — deterministic
             .sort_values(["count", "movie_id"], ascending=[False, True], kind="mergesort")
         )
         self._ranked_items = counts["movie_id"].tolist()
@@ -41,7 +41,7 @@ class PopularityRecommender:
         return self._counts
 
     def top_items(self, k: int) -> list[str]:
-        """Global Top-K (ไม่ filter seen) — ใช้เป็น fallback สำหรับ unknown user"""
+        """Global Top-K (no seen filtering) — used as the fallback for unknown users"""
         return self._ranked_items[:k]
 
     def recommend(

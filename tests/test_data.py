@@ -1,4 +1,4 @@
-"""Data contract + security tests (ไม่แตะ network)"""
+"""Data contract + security tests (no network access)"""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ class TestPositiveRule:
 
 class TestSafeExtract:
     def test_zip_slip_is_blocked(self, tmp_path):
-        """archive ที่มี path traversal (../) ต้องถูกปฏิเสธ — security guard"""
+        """An archive containing path traversal (../) must be rejected — security guard"""
         malicious = tmp_path / "evil.zip"
         with zipfile.ZipFile(malicious, "w") as zf:
             zf.writestr("../evil.txt", "pwned")

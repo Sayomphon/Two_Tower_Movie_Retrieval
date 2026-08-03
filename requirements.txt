@@ -1,10 +1,10 @@
-# Runtime dependencies — ตรงกับ [project.dependencies] ใน pyproject.toml
-# ต้องการ reproduce ผลลัพธ์เป๊ะ ๆ ให้ใช้ requirements-lock.txt แทนไฟล์นี้
+# Runtime dependencies — mirrors [project.dependencies] in pyproject.toml
+# To reproduce results exactly, use requirements-lock.txt instead of this file
 tensorflow>=2.16,<2.21
 pandas>=2.1,<3
 numpy>=1.26,<3
 requests>=2.32,<3
 
-# Notebook rendering (blueprint บทที่ 5: ต้องรัน notebook ได้)
+# Notebook rendering (blueprint chapter 5: the notebook must be runnable)
 matplotlib>=3.8
 ipykernel>=6.29

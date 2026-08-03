@@ -9,10 +9,10 @@ from movie_retrieval.index import BruteForceIndex, RetrievalService, load_index,
 
 USER_VOCAB = ["u1", "u2"]
 MOVIE_VOCAB = ["m1", "m2", "m3"]
-# u1 ชอบ m3, u2 ชอบ m1 (ออกแบบ embedding ให้ dot product ชัดเจน)
-USER_EMB = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]], dtype=np.float32)  # แถว 0 = OOV
+# u1 likes m3, u2 likes m1 (embeddings designed so the dot product is unambiguous)
+USER_EMB = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]], dtype=np.float32)  # row 0 = OOV
 MOVIE_EMB = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]], dtype=np.float32)
-POPULARITY = np.array([30.0, 20.0, 10.0], dtype=np.float32)  # m1 popular สุด
+POPULARITY = np.array([30.0, 20.0, 10.0], dtype=np.float32)  # m1 is the most popular
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ class TestBruteForceIndex:
         result = index.recommend(np.array(["stranger"], dtype=object), 3)
         assert result["fallback_used"].numpy()[0]
         top = [m.decode() for m in result["movie_ids"].numpy()[0]]
-        assert top == ["m1", "m2", "m3"]  # เรียงตาม popularity
+        assert top == ["m1", "m2", "m3"]  # ordered by popularity
 
     def test_k_is_capped_at_catalogue_size(self, index):
         result = index.recommend(np.array(["u1"], dtype=object), 999)
@@ -77,11 +77,11 @@ class TestRetrievalService:
     def test_seen_filtering(self, service):
         response = service.recommend("u1", k=3)
         rec_ids = [r["movie_id"] for r in response["recommendations"]]
-        assert "m3" not in rec_ids  # u1 เคยดู m3 แล้ว
+        assert "m3" not in rec_ids  # u1 has already seen m3
 
     def test_response_has_no_duplicate_movies(self, service):
-        # u1 เห็น m3 แล้ว → fetch_k = k + 1 แล้วค่อย filter ทีหลัง
-        # ถ้าตรรกะ over-fetch เพี้ยน หนังซ้ำจะโผล่ที่ชั้น serving นี้ก่อนที่อื่น
+        # u1 has seen m3 → fetch_k = k + 1, then filter afterwards
+        # if the over-fetch logic goes wrong, duplicates surface at this serving layer first
         response = service.recommend("u1", k=2)
         movie_ids = [r["movie_id"] for r in response["recommendations"]]
         assert len(movie_ids) == len(set(movie_ids))

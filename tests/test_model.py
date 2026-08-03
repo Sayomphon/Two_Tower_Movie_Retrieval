@@ -1,4 +1,4 @@
-"""Two-tower model tests — synthetic data ขนาดเล็ก (TF ต้องถูกติดตั้ง)"""
+"""Two-tower model tests — small synthetic data (TF must be installed)"""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ CFG = ModelConfig(embedding_dim=8, epochs=3, batch_size=32, seed=7)
 
 @pytest.fixture(scope="module")
 def tiny_train() -> pd.DataFrame:
-    """20 users แบ่ง 2 กลุ่ม: กลุ่ม A ดูแต่ m0-m2, กลุ่ม B ดูแต่ m3-m5
+    """20 users in 2 groups: group A only watches m0-m2, group B only watches m3-m5
 
-    โครงสร้างชัดเจนพอที่ two-tower ควรเรียนรู้ separation ได้ในไม่กี่ epoch
+    The structure is clear enough that the two-tower should learn the separation in a few epochs
     """
     rng = np.random.default_rng(0)
     rows = []
@@ -45,11 +45,11 @@ class TestTwoTowerModel:
         history = model.fit(tiny_train)
         assert len(history) == cfg.epochs
         assert all(np.isfinite(loss) for loss in history)
-        # dataset เล็กมาก epoch แรกๆ อาจแกว่ง — เทียบค่าเฉลี่ยท้ายกับ epoch แรก
+        # the dataset is tiny so early epochs can wobble — compare the tail average to epoch 1
         assert np.mean(history[-3:]) < history[0]
 
     def test_learns_group_structure(self, tiny_train):
-        """user กลุ่ม A ต้อง score หนังกลุ่ม A สูงกว่าหนังกลุ่ม B"""
+        """A group-A user must score group-A movies higher than group-B movies"""
         users, movies = build_vocabs(tiny_train)
         model = TwoTowerModel(users, movies, ModelConfig(embedding_dim=8, epochs=10, seed=7))
         model.fit(tiny_train)

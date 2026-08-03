@@ -1,10 +1,10 @@
-"""Retrieval evaluation — ทำงานบน Top-K recommendation lists
+"""Retrieval evaluation — operates on Top-K recommendation lists
 
-หลักการ (blueprint บทที่ 7):
-- ทุก recommender ถูกประเมินผ่าน interface เดียวกัน: dict[user_id, ranked list]
-  ทำให้เทียบ baseline กับ two-tower ได้อย่างยุติธรรม
-- full-catalogue evaluation (1,682 items) — ไม่มี sampling bias
-- metric ไม่ได้มีแค่ accuracy: coverage/popularity bias เป็น guardrail
+Principles (blueprint chapter 7):
+- every recommender is scored through the same interface: dict[user_id, ranked list],
+  which makes the baseline-vs-two-tower comparison fair
+- full-catalogue evaluation (1,682 items) — no sampling bias
+- metrics are not accuracy only: coverage/popularity bias act as guardrails
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ def topk_recommendations(
     seen: dict[str, set[str]] | None = None,
     exclude_seen: bool = True,
 ) -> Recommendations:
-    """แปลง score matrix [n_users, n_movies] → Top-K ต่อ user (mask seen ด้วย -inf)"""
+    """Turn a score matrix [n_users, n_movies] → Top-K per user (seen items masked with -inf)"""
     scores = scores.copy().astype(np.float64)
     col_of = {movie_id: j for j, movie_id in enumerate(movie_vocab)}
 
@@ -50,13 +50,13 @@ def topk_recommendations(
 # ---------------------------------------------------------- ranking metrics
 
 def _dcg(hits: np.ndarray) -> float:
-    """hits: binary relevance เรียงตามตำแหน่ง 0..K-1"""
+    """hits: binary relevance ordered by position 0..K-1"""
     positions = np.arange(len(hits))
     return float(np.sum(hits / np.log2(positions + 2)))
 
 
 def ranking_metrics(recs: Recommendations, truth: Truth, ks: tuple[int, ...] = (10, 50)) -> dict:
-    """Recall@K, NDCG@K, HitRate@K เฉลี่ยต่อ user (เฉพาะ users ที่มี truth)"""
+    """Recall@K, NDCG@K, HitRate@K averaged per user (only users that have truth)"""
     results: dict[str, float] = {}
     users = [u for u in truth if u in recs]
     if not users:
@@ -87,20 +87,20 @@ def ranking_metrics(recs: Recommendations, truth: Truth, ks: tuple[int, ...] = (
 # ------------------------------------------------------- coverage and bias
 
 def catalogue_coverage(recs: Recommendations, catalogue_size: int) -> float:
-    """สัดส่วน catalogue ที่ถูกแนะนำให้อย่างน้อยหนึ่ง user"""
+    """Share of the catalogue recommended to at least one user"""
     recommended = {m for items in recs.values() for m in items}
     return len(recommended) / catalogue_size
 
 
 def popularity_bias(recs: Recommendations, item_counts: pd.Series) -> dict:
-    """วัดว่า recommendation กระจุกอยู่ที่หนังยอดนิยมแค่ไหน
+    """Measure how much the recommendations concentrate on popular movies
 
-    - mean_popularity_percentile: 1.0 = แนะนำแต่หนังที่ popular สุด
-    - top10pct_share: สัดส่วน slot ที่ตกเป็นของหนัง top-10%-popular
-    - gini_exposure: 0 = ทุกหนังได้ exposure เท่ากัน, 1 = กระจุกสุดขีด
+    - mean_popularity_percentile: 1.0 = only the most popular movies are recommended
+    - top10pct_share: share of slots taken by the top-10%-popular movies
+    - gini_exposure: 0 = every movie gets equal exposure, 1 = maximally concentrated
     """
     counts = item_counts.astype(float)
-    percentile = counts.rank(pct=True)  # 1.0 = popular ที่สุด
+    percentile = counts.rank(pct=True)  # 1.0 = most popular
     top10_cut = counts.quantile(0.9)
     top10_items = set(counts[counts >= top10_cut].index)
 
@@ -127,7 +127,7 @@ def popularity_bias(recs: Recommendations, item_counts: pd.Series) -> dict:
 # ----------------------------------------------------------------- slices
 
 def user_activity_slices(train_df: pd.DataFrame) -> dict[str, str]:
-    """แบ่ง users เป็น low/medium/high ตาม train interaction count (terciles)"""
+    """Bucket users into low/medium/high by train interaction count (terciles)"""
     counts = train_df.groupby("user_id").size()
     low_cut, high_cut = counts.quantile([1 / 3, 2 / 3])
     slices: dict[str, str] = {}
@@ -142,7 +142,7 @@ def user_activity_slices(train_df: pd.DataFrame) -> dict[str, str]:
 
 
 def item_popularity_slices(item_counts: pd.Series, head_quantile: float = 0.9) -> dict[str, str]:
-    """head = top-10% popular items, tail = ที่เหลือ (รวม unseen ใน train = tail)"""
+    """head = top-10% popular items, tail = everything else (unseen in train counts as tail)"""
     cut = item_counts.quantile(head_quantile)
     return {
         str(movie_id): ("head" if count >= cut else "tail")
@@ -157,7 +157,7 @@ def sliced_metrics(
     ks: tuple[int, ...] = (10,),
     default_group: str | None = None,
 ) -> dict[str, dict]:
-    """คำนวณ ranking metrics แยกตาม group ของ user"""
+    """Compute ranking metrics separately per user group"""
     by_group: dict[str, Truth] = {}
     for user_id, items in truth.items():
         group = groups.get(user_id, default_group)
@@ -172,5 +172,5 @@ def sliced_metrics(
 
 
 def truth_from_frame(test_df: pd.DataFrame) -> Truth:
-    """แปลง test DataFrame → dict[user_id, list of relevant movie_ids]"""
+    """Turn the test DataFrame → dict[user_id, list of relevant movie_ids]"""
     return test_df.groupby("user_id")["movie_id"].apply(list).to_dict()

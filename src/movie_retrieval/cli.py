@@ -4,7 +4,7 @@ Usage:
     movie-retrieval prepare                 # download + validate + temporal split
     movie-retrieval train                   # experiment matrix + select winner
     movie-retrieval evaluate [--sensitivity]  # final test eval + export serving artifacts
-    movie-retrieval all [--sensitivity]     # ทุกขั้นตอนต่อเนื่อง
+    movie-retrieval all [--sensitivity]     # every stage back to back
     movie-retrieval recommend --user-id 42 --k 10 [--include-seen]
 """
 
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         result = recommend_cli(
             paths, user_id=args.user_id, k=args.k, exclude_seen=not args.include_seen
         )
-    else:  # pragma: no cover — argparse บังคับ command อยู่แล้ว
+    else:  # pragma: no cover — argparse already enforces a valid command
         raise SystemExit(2)
 
     print(json.dumps(result, indent=2, ensure_ascii=False))

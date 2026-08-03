@@ -1,17 +1,17 @@
 """Two-tower retrieval model (pure TensorFlow/Keras 3).
 
-Design decision: implement retrieval loss เองแทนการใช้ TensorFlow Recommenders
-เพราะ TFRS อยู่ใน maintenance mode และไม่ compatible กับ Keras 3 โดยตรง
-(ต้องใช้ TF_USE_LEGACY_KERAS env hack) — การ own โค้ด ~60 บรรทัดนี้
-โปร่งใสกว่าและเป็น interview material ที่ดีกว่า
+Design decision: implement the retrieval loss ourselves instead of using TensorFlow
+Recommenders, because TFRS is in maintenance mode and is not directly compatible with
+Keras 3 (it needs the TF_USE_LEGACY_KERAS env hack) — owning these ~60 lines is more
+transparent and makes better interview material.
 
-Architecture (blueprint บทที่ 6):
+Architecture (blueprint chapter 6):
     user_id  → StringLookup → Embedding(dim) ┐
                                              ├→ dot product → Top-K
     movie_id → StringLookup → Embedding(dim) ┘
 
-Loss: in-batch sampled softmax — ใช้ movie อื่นใน batch เดียวกันเป็น negatives
-พร้อม accidental-hit masking (movie ซ้ำใน batch ต้องไม่ถูกนับเป็น negative)
+Loss: in-batch sampled softmax — other movies in the same batch act as negatives,
+with accidental-hit masking (a repeated movie in the batch must not count as a negative)
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ keras = tf.keras
 class TwoTowerModel:
     """User/movie embedding towers + dot-product retrieval
 
-    Index 0 ของทุก embedding table สงวนให้ OOV (unknown user/movie)
+    Index 0 of every embedding table is reserved for OOV (unknown user/movie)
     """
 
     def __init__(self, user_vocab: list[str], movie_vocab: list[str], cfg: ModelConfig) -> None:
@@ -58,13 +58,13 @@ class TwoTowerModel:
         self.movie_embedding = keras.layers.Embedding(
             len(self.movie_vocab) + 1, cfg.embedding_dim, embeddings_initializer=initializer
         )
-        # build weights ทันทีเพื่อให้ save/load ได้ก่อน train
+        # build weights right away so save/load works before training
         self.user_embedding.build((None,))
         self.movie_embedding.build((None,))
 
     @property
     def n_parameters(self) -> int:
-        """ขนาดโมเดล = จำนวน weight ใน embedding table ทั้งสอง (รวมแถว OOV อย่างละ 1)"""
+        """Model size = weight count across both embedding tables (incl. one OOV row each)"""
         return int(
             self.user_embedding.embeddings.shape.num_elements()
             + self.movie_embedding.embeddings.shape.num_elements()
@@ -81,11 +81,11 @@ class TwoTowerModel:
     # ------------------------------------------------------------- training
 
     def _loss_step(self, user_ids: tf.Tensor, movie_ids: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
-        """คืน (sum_loss สำหรับ gradients, mean_loss สำหรับ logging)
+        """Return (sum_loss for gradients, mean_loss for logging)
 
-        ใช้ SUM reduction ตาม semantics ของ TFRS Retrieval task — gradient
-        scale ใหญ่พอให้ Adagrad เดินได้จริง (mean reduction ทำให้ step เล็ก
-        จน loss แบนบน dataset เล็ก)
+        Uses SUM reduction, matching the semantics of the TFRS Retrieval task — the
+        gradient scale is large enough for Adagrad to actually move (mean reduction
+        makes steps so small that loss flatlines on a small dataset)
         """
         user_emb = self.user_tower(user_ids)  # [B, D]
         movie_idx = self.movie_lookup(movie_ids)  # [B]
@@ -95,8 +95,8 @@ class TwoTowerModel:
         batch = tf.shape(logits)[0]
         labels = tf.range(batch)
 
-        # accidental-hit masking: movie เดียวกันที่ตำแหน่งอื่นใน batch
-        # เป็น positive ปลอมๆ ห้ามนับเป็น negative
+        # accidental-hit masking: the same movie at another position in the batch
+        # is a false positive and must not count as a negative
         same_movie = tf.equal(movie_idx[None, :], movie_idx[:, None])  # [B, B]
         not_diagonal = ~tf.eye(batch, dtype=tf.bool)
         logits = tf.where(same_movie & not_diagonal, tf.float32.min, logits)
@@ -118,7 +118,7 @@ class TwoTowerModel:
         train_df: pd.DataFrame,
         epoch_callback: Callable[[int, float], None] | None = None,
     ) -> list[float]:
-        """Train ด้วย custom loop (GradientTape) — คืน loss history ต่อ epoch"""
+        """Train with a custom loop (GradientTape) — returns per-epoch loss history"""
         cfg = self.cfg
         dataset = tf.data.Dataset.from_tensor_slices(
             {
@@ -160,13 +160,13 @@ class TwoTowerModel:
     # -------------------------------------------------------------- scoring
 
     def movie_embedding_matrix(self) -> np.ndarray:
-        """Embedding ของทุกหนังใน vocab (เรียงตาม self.movie_vocab)"""
+        """Embeddings for every movie in the vocab (ordered by self.movie_vocab)"""
         return self.movie_tower(tf.constant(self.movie_vocab)).numpy()
 
     def score_users(self, user_ids: list[str]) -> np.ndarray:
-        """คืน score matrix [len(user_ids), len(movie_vocab)] — full-catalogue retrieval
+        """Return a score matrix [len(user_ids), len(movie_vocab)] — full-catalogue retrieval
 
-        catalogue 1,682 เรื่อง → matmul ตรงๆ ถูกต้องแม่นยำกว่า sampled evaluation
+        With a 1,682-title catalogue a direct matmul is more accurate than sampled evaluation
         """
         user_emb = self.user_tower(tf.constant(user_ids)).numpy()
         return user_emb @ self.movie_embedding_matrix().T
@@ -205,10 +205,10 @@ class TwoTowerModel:
 
 
 def build_vocabs(train_df: pd.DataFrame) -> tuple[list[str], list[str]]:
-    """Vocabulary จาก train เท่านั้น (entities ที่โผล่ครั้งแรกใน val/test = OOV)
+    """Vocabulary from train only (entities first seen in val/test are OOV)
 
-    เรียงด้วย (length, lexicographic) — deterministic เสมอ และเทียบเท่า numeric
-    order สำหรับ id ตัวเลขแบบ ml-100k โดยไม่ assume ว่า id ต้องเป็นตัวเลข
+    Sorted by (length, lexicographic) — always deterministic, and equivalent to numeric
+    order for ml-100k-style numeric ids without assuming ids have to be numbers
     """
     key = lambda s: (len(s), s)  # noqa: E731
     users = sorted(train_df["user_id"].unique(), key=key)

@@ -1,12 +1,12 @@
-"""Serving index — brute-force Top-K retrieval เป็น SavedModel
+"""Serving index — brute-force Top-K retrieval exported as a SavedModel
 
 Design decisions:
-- ใช้ pure TF ops (StaticHashTable + matmul + top_k) — artifact ไม่ผูกกับ Keras
-  version ใดๆ โหลดได้ทุก environment ที่มี TF
-- unknown user (OOV) → fallback เป็น popularity scores พร้อม flag `fallback_used`
-- seen-item filtering เป็น post-retrieval business filter อยู่ฝั่ง RetrievalService
-  (production จะเป็น filtering service แยกชั้น ตาม blueprint บทที่ 9)
-- BruteForce เหมาะกับ catalogue 1,682 เรื่อง — scale ใหญ่ต้องเปลี่ยนเป็น ANN
+- pure TF ops (StaticHashTable + matmul + top_k) — the artifact is not tied to any
+  Keras version and loads in any environment that has TF
+- unknown user (OOV) → fall back to popularity scores with a `fallback_used` flag
+- seen-item filtering is a post-retrieval business filter living in RetrievalService
+  (in production this becomes a separate filtering service, per blueprint chapter 9)
+- brute force suits a 1,682-title catalogue — larger scale needs ANN instead
 """
 
 from __future__ import annotations
@@ -28,10 +28,10 @@ class BruteForceIndex(tf.Module):
     def __init__(
         self,
         user_vocab: list[str],
-        user_embeddings: np.ndarray,  # [n_users + 1, D] แถว 0 = OOV
+        user_embeddings: np.ndarray,  # [n_users + 1, D] row 0 = OOV
         movie_vocab: list[str],
-        movie_embeddings: np.ndarray,  # [n_movies, D] เรียงตาม movie_vocab
-        popularity_scores: np.ndarray,  # [n_movies] fallback สำหรับ unknown user
+        movie_embeddings: np.ndarray,  # [n_movies, D] ordered by movie_vocab
+        popularity_scores: np.ndarray,  # [n_movies] fallback for unknown users
     ) -> None:
         super().__init__()
         if user_embeddings.shape[0] != len(user_vocab) + 1:
@@ -93,11 +93,11 @@ def load_index(index_dir: Path) -> tf.Module:
 
 
 class RetrievalService:
-    """Inference wrapper ตาม contract ใน blueprint บทที่ 9
+    """Inference wrapper following the contract in blueprint chapter 9
 
     - validate input (user_id charset/length, 1 <= k <= MAX_K)
-    - seen-item filtering หลัง retrieval
-    - แนบ model/index version ทุก response
+    - seen-item filtering after retrieval
+    - attach model/index version to every response
     """
 
     def __init__(
@@ -134,27 +134,27 @@ class RetrievalService:
 
     @property
     def catalogue_size(self) -> int:
-        """จำนวนหนังที่ index ค้นได้ (train vocabulary)"""
+        """Number of movies the index can retrieve (train vocabulary)"""
         return self._catalogue_size
 
     def seen_titles(self, user_id: str, limit: int | None = None) -> list[str]:
-        """หนังที่ user เคยมี interaction แล้ว — เรียงตามชื่อเพื่อให้ผลลัพธ์ deterministic
+        """Movies the user has already interacted with — sorted by title for deterministic output
 
-        ใช้แสดงบริบทคู่กับ recommendation (UI/debug): seen_items เก็บเป็น set
-        จึงไม่มีลำดับเวลา — ห้ามนำไปเรียกว่า "หนังที่ดูล่าสุด"
+        Shown as context alongside recommendations (UI/debug): seen_items is stored as a
+        set, so it carries no chronology — never present it as "recently watched"
         """
         titles = sorted(self._titles.get(m, m) for m in self._seen.get(user_id, ()))
         return titles[:limit] if limit is not None else titles
 
     def recommend(self, user_id: str, k: int = 10, exclude_seen: bool = True) -> dict:
-        # ---- input validation (ป้องกัน abuse/typo ก่อนแตะ index) ----
+        # ---- input validation (catch abuse/typos before touching the index) ----
         if not isinstance(user_id, str) or not _USER_ID_PATTERN.match(user_id):
             raise ValueError("user_id must be 1-64 chars of [A-Za-z0-9_-]")
         if not isinstance(k, int) or not 1 <= k <= MAX_K:
             raise ValueError(f"k must be an integer in [1, {MAX_K}]")
 
         user_seen = self._seen.get(user_id, set()) if exclude_seen else set()
-        # ขอเผื่อจาก index เท่าจำนวน seen เพื่อให้เหลือครบ k หลัง filter
+        # over-fetch by the number of seen items so k survive the filter
         fetch_k = min(k + len(user_seen), self._catalogue_size)
 
         result = self._index.recommend(tf.constant([user_id]), tf.constant(fetch_k, tf.int32))

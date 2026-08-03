@@ -1,4 +1,4 @@
-"""Metric correctness tests — ตรวจกับค่าที่คำนวณมือ"""
+"""Metric correctness tests — checked against hand-computed values"""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class TestRankingMetrics:
         metrics = ranking_metrics(recs, truth, ks=(1, 2))
         assert metrics["recall@1"] == 0.0
         assert metrics["recall@2"] == 1.0
-        # b อยู่ตำแหน่ง index 1 → DCG = 1/log2(3), IDCG = 1
+        # b sits at index 1 → DCG = 1/log2(3), IDCG = 1
         assert metrics["ndcg@2"] == pytest.approx(1 / math.log2(3))
         assert metrics["hit_rate@2"] == 1.0
 
@@ -53,7 +53,7 @@ class TestTopKRecommendations:
         recs = topk_recommendations(
             scores, ["u1"], ["m1", "m2", "m3"], k=2, seen={"u1": {"m2"}}
         )
-        assert recs["u1"] == ["m3", "m1"]  # m2 ถูก mask ออก
+        assert recs["u1"] == ["m3", "m1"]  # m2 is masked out
 
     def test_no_seen_filtering_when_disabled(self):
         scores = np.array([[1.0, 3.0, 2.0]])
@@ -63,7 +63,7 @@ class TestTopKRecommendations:
         assert recs["u1"] == ["m2", "m3"]
 
     def test_no_duplicate_items(self):
-        # score เท่ากันคือเคสที่ tie-break พลาดแล้วคืนหนังซ้ำได้ง่ายที่สุด
+        # equal scores are where a broken tie-break most easily returns duplicate movies
         scores = np.array([[2.0, 2.0, 2.0, 1.0], [3.0, 1.0, 3.0, 3.0]])
         recs = topk_recommendations(scores, ["u1", "u2"], ["m1", "m2", "m3", "m4"], k=4)
         for user_id, items in recs.items():
@@ -101,7 +101,7 @@ class TestSlices:
     def test_item_popularity_slices(self):
         counts = pd.Series(range(1, 21), index=[f"m{i}" for i in range(20)])
         groups = item_popularity_slices(counts)
-        assert groups["m19"] == "head"  # count สูงสุด
+        assert groups["m19"] == "head"  # highest count
         assert groups["m0"] == "tail"
 
     def test_sliced_metrics_partitions_users(self):

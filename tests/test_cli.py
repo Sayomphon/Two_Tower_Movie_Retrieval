@@ -1,9 +1,9 @@
-"""CLI contract tests — argv เข้า แล้ว pipeline ถูกเรียกด้วยอะไรออกไป
+"""CLI contract tests — argv goes in, and we check what the pipeline gets called with
 
-ไม่แตะ network/dataset/artifacts: pipeline functions ถูก monkeypatch ทั้งหมด
-สิ่งที่ทดสอบคือสัญญาที่ผู้ใช้เห็น (subcommand, flag, default) ซึ่งเป็นชั้นที่ test
-ระดับ module มองไม่เห็น — โดยเฉพาะ `--include-seen` ที่ถูกกลับด้านเป็น
-`exclude_seen` ก่อนส่งต่อ
+No network/dataset/artifacts involved: every pipeline function is monkeypatched. What is
+tested is the contract the user sees (subcommand, flag, default) — the layer module-level
+tests cannot see, especially `--include-seen`, which is inverted into `exclude_seen`
+before being passed on.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from movie_retrieval import cli
 
 @pytest.fixture
 def calls(monkeypatch) -> list[tuple[str, dict]]:
-    """บันทึกว่า CLI เรียก pipeline stage ไหนด้วย argument อะไร ตามลำดับ"""
+    """Record which pipeline stage the CLI calls, with which arguments, in order"""
     recorded: list[tuple[str, dict]] = []
 
     def spy(name: str):

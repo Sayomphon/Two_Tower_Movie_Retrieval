@@ -1,7 +1,8 @@
 """End-to-end pipeline orchestration: prepare → train → evaluate → export
 
-แต่ละขั้นเขียน artifact ลงดิสก์เพื่อให้รันแยกขั้นได้ (rerun-friendly ตาม blueprint บทที่ 4)
-และ final test evaluation ทำครั้งเดียวหลังเลือก config จาก validation เท่านั้น
+Each stage writes its artifacts to disk so stages can be run separately (rerun-friendly,
+per blueprint chapter 4), and the final test evaluation runs once, only after the config
+has been selected on validation.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from .splits import SplitResult, seen_items_map, temporal_leave_last_k
 logger = logging.getLogger(__name__)
 
 EVAL_KS = (10, 50)
-SELECT_K = 10  # model selection ใช้ val recall@10
+SELECT_K = 10  # model selection uses val recall@10
 
 
 # ---------------------------------------------------------------- prepare
@@ -79,14 +80,14 @@ def load_splits(paths: Paths) -> SplitResult:
 # ------------------------------------------------------------------ train
 
 def val_metrics(recs: dict[str, list[str]], val_truth: dict, catalogue_size: int) -> dict:
-    """Val metric ครบชุดตาม tracking spec (blueprint บทที่ 4): recall + ndcg + coverage"""
+    """Full val metric set per the tracking spec (blueprint chapter 4): recall + ndcg + coverage"""
     metrics = ranking_metrics(recs, val_truth, ks=(SELECT_K,))
     metrics[f"coverage@{SELECT_K}"] = catalogue_coverage(recs, catalogue_size)
     return metrics
 
 
 def _experiment_entry(run: str, config: dict, metrics: dict, **extra) -> dict:
-    """Run entry รูปแบบเดียวกันทุก run เพื่อให้ experiments.json เทียบข้ามแถวได้"""
+    """One run entry shape for every run, so experiments.json stays comparable row to row"""
     return {
         "run": run,
         "config": config,
@@ -98,11 +99,12 @@ def _experiment_entry(run: str, config: dict, metrics: dict, **extra) -> dict:
 
 
 def _record_run(paths: Paths, entry: dict) -> None:
-    """Merge run entry เข้า experiments.json — แทนที่ run ชื่อเดิมถ้ามีอยู่แล้ว
+    """Merge a run entry into experiments.json — replacing an entry with the same run name
 
-    evaluate() ถูกเรียกซ้ำได้โดยไม่ต้อง train ใหม่ ถ้า append ตรงๆ ไฟล์จะสะสม run
-    ชื่อซ้ำจนอ่านไม่ได้ — merge แบบ idempotent ทำให้รันกี่รอบผลก็เหมือนเดิม
-    เรียงตามชื่อ run ทุกครั้งเพื่อให้ไฟล์อ่านเป็น experiment matrix R0→R4 ตามลำดับ
+    evaluate() can be re-run without retraining; a plain append would pile up duplicate
+    run names until the file is unreadable — an idempotent merge keeps the result the same
+    no matter how many times it runs. Entries are re-sorted by run name every time so the
+    file reads as the experiment matrix in R0→R4 order.
     """
     exp_path = paths.artifacts_dir / "experiments.json"
     if not exp_path.exists():
@@ -121,14 +123,14 @@ def _record_run(paths: Paths, entry: dict) -> None:
 
 
 def train(paths: Paths, cfg: ExperimentConfig) -> dict:
-    """รัน experiment matrix (R0 popularity, R1 dim32, R2 dim64) เลือก winner จาก val recall@10"""
+    """Run the experiment matrix (R0 popularity, R1 dim32, R2 dim64), winner by val recall@10"""
     split = load_splits(paths)
     seen_train = seen_items_map(split.train)
     user_vocab, movie_vocab = build_vocabs(split.train)
     val_truth = truth_from_frame(split.val)
     val_users = sorted(val_truth, key=int)
 
-    # R0: baseline บน val — ใช้ทั้งเป็น reference ของ selection และเป็น run แรกของ matrix
+    # R0: baseline on val — serves both as the selection reference and as the matrix's first run
     started = time.perf_counter()
     pop = PopularityRecommender().fit(split.train)
     pop_seconds = time.perf_counter() - started
@@ -187,7 +189,7 @@ def train(paths: Paths, cfg: ExperimentConfig) -> dict:
         f"selected_val_recall@{SELECT_K}": winner_recall,
         f"baseline_val_recall@{SELECT_K}": pop_recall,
         "beats_baseline": winner_recall > pop_recall,
-        # negative/candidate configuration ที่ blueprint บทที่ 4 สั่งให้ log คู่กับ metric
+        # negative/candidate configuration that blueprint chapter 4 requires logging next to metrics
         "candidate_configuration": {
             "negatives": "in-batch sampled softmax with accidental-hit masking",
             "candidate_set": "full catalogue (train vocabulary)",
@@ -216,7 +218,7 @@ def _evaluate_recs(recs, truth, item_counts, catalogue_size) -> dict:
 
 
 def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False) -> dict:
-    """Final test evaluation ครั้งเดียว + slices + export serving artifacts"""
+    """A single final test evaluation + slices + serving artifact export"""
     split = load_splits(paths)
     user_vocab, movie_vocab = build_vocabs(split.train)
     model = TwoTowerModel.load(paths.model_dir, user_vocab, movie_vocab)
@@ -224,7 +226,7 @@ def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False
     item_counts = pop.item_counts
     catalogue_size = len(movie_vocab)
 
-    # test evaluation: mask ทุกอย่างที่ user เคยเห็นก่อน test (train + val)
+    # test evaluation: mask everything the user saw before test (train + val)
     seen_before_test = seen_items_map(split.train, split.val)
     test_truth = truth_from_frame(split.test)
     test_users = sorted(test_truth, key=int)
@@ -236,7 +238,7 @@ def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False
     )
     pop_recs = pop.recommend_batch(test_users, max_k, seen=seen_before_test)
 
-    # OOV test items: หนังที่ไม่อยู่ใน train vocab — model ไม่มีทาง retrieve ได้
+    # OOV test items: movies absent from the train vocab — the model can never retrieve them
     vocab_set = set(movie_vocab)
     oov_rate = float(np.mean([m not in vocab_set for items in test_truth.values() for m in items]))
 
@@ -246,7 +248,7 @@ def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False
         "oov_test_item_rate": oov_rate,
     }
 
-    # ---- slices (blueprint บทที่ 7) ----
+    # ---- slices (blueprint chapter 7) ----
     activity = user_activity_slices(split.train)
     results["two_tower"]["slices_by_user_activity"] = sliced_metrics(
         model_recs, test_truth, activity, ks=(10,)
@@ -263,7 +265,7 @@ def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False
     serving = export_serving_artifacts(paths, cfg, model, pop, split)
     results["serving"] = serving
 
-    # R4: serving-ready config — วัดด้วย coverage/latency ไม่ใช่ recall (experiment matrix บทที่ 6)
+    # R4: serving-ready config — judged on coverage/latency, not recall (matrix, chapter 6)
     _record_run(
         paths,
         {
@@ -279,7 +281,7 @@ def evaluate(paths: Paths, cfg: ExperimentConfig, with_sensitivity: bool = False
     if with_sensitivity:
         sensitivity = sensitivity_threshold(paths, cfg)
         results["sensitivity_rating_ge_4"] = sensitivity
-        # R3: positive-interaction rule ที่เข้มขึ้น (rating >= 4) บน split ที่สร้างใหม่ทั้งชุด
+        # R3: a stricter positive-interaction rule (rating >= 4) on a fully rebuilt split
         _record_run(
             paths,
             {
@@ -304,7 +306,7 @@ def export_serving_artifacts(
     pop: PopularityRecommender,
     split: SplitResult,
 ) -> dict:
-    """สร้าง index SavedModel + vocab/seen/titles/versions และตรวจ reload consistency"""
+    """Build the index SavedModel + vocab/seen/titles/versions and check reload consistency"""
     movie_vocab = model.movie_vocab
     popularity_scores = (
         pop.item_counts.reindex(movie_vocab).fillna(0).to_numpy(dtype=np.float32)
@@ -332,7 +334,7 @@ def export_serving_artifacts(
     if not reload_consistent:
         raise RuntimeError("index reload produced different Top-K — artifact is not trustworthy")
 
-    # latency benchmark (single-user query แบบ production shape)
+    # latency benchmark (single-user query, production shape)
     latencies = []
     for user_id in model.user_vocab[:100]:
         started = time.perf_counter()
@@ -378,7 +380,7 @@ def export_serving_artifacts(
 
 
 def sensitivity_threshold(paths: Paths, cfg: ExperimentConfig) -> dict:
-    """R3: rating >= 4 เป็น positive แทนการใช้ทุก rating — วัดผลต่อ recall"""
+    """R3: treat rating >= 4 as positive instead of every rating — measure the effect on recall"""
     ratings = data_mod.load_ratings(paths.raw_dir)
     positives = data_mod.apply_positive_rule(ratings, 4.0)
     strict_cfg = replace(cfg.split, positive_rating_threshold=4.0)

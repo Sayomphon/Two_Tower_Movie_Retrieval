@@ -1,10 +1,11 @@
-"""Entry point ของ Gradio demo — ใช้ได้ทั้ง local และ Hugging Face Spaces
+"""Entry point for the Gradio demo — works both locally and on Hugging Face Spaces
 
     pip install -e ".[demo]"
-    movie-retrieval all        # สร้าง artifacts ก่อน (ถ้ายังไม่มี)
+    movie-retrieval all        # build the artifacts first (if they do not exist yet)
     python app.py
 
-logic ทั้งหมดอยู่ใน `movie_retrieval.demo` เพื่อให้ test ได้และไม่ผูกกับ hosting platform
+All the logic lives in `movie_retrieval.demo` so it stays testable and unbound to any
+hosting platform
 """
 
 from movie_retrieval.demo import main

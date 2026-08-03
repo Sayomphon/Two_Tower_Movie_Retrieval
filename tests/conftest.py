@@ -1,7 +1,7 @@
-"""Shared fixtures — synthetic data ที่ควบคุมได้ 100% สำหรับ unit tests
+"""Shared fixtures — fully controlled synthetic data for unit tests
 
-Unit tests ไม่แตะ network/dataset จริง (integration test แยกไฟล์และ skip
-อัตโนมัติถ้ายังไม่มีไฟล์ dataset ในเครื่อง)
+Unit tests never touch the network or the real dataset (the integration test lives in its
+own file and skips automatically when the dataset is not on the machine yet)
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ import pytest
 
 @pytest.fixture
 def synthetic_ratings() -> pd.DataFrame:
-    """6 users: u1-u5 มี 6 interactions (พอสำหรับ min_history=5), u6 มีแค่ 2 (ต้องถูก drop)
+    """6 users: u1-u5 have 6 interactions (enough for min_history=5), u6 has only 2 (gets dropped)
 
-    timestamp เรียงเพิ่มขึ้นต่อ user อย่างชัดเจน — interaction ล่าสุดคือ m6
+    Timestamps increase strictly per user — the most recent interaction is m6
     """
     rows = []
     for u in range(1, 6):

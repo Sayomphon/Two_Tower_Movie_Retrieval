@@ -1,8 +1,8 @@
-"""Demo UI tests — สิ่งที่ผู้ใช้เห็นบนหน้าจอ ทดสอบได้โดยไม่ต้องติดตั้ง gradio
+"""Demo UI tests — what the user sees on screen, testable without installing gradio
 
-(`build_demo()` import gradio ข้างในตัวเอง จึงไม่ถูกแตะจากไฟล์นี้)
-หน้าจอเป็น HTML ที่เราประกอบเอง — test ชุดนี้จึงคุมสองอย่างเป็นหลัก:
-ค่าที่มาจากข้อมูลต้องถูก escape เสมอ และ input แปลก ๆ ต้องกลายเป็นข้อความ ไม่ใช่ exception
+(`build_demo()` imports gradio inside itself, so this file never touches it)
+The screen is HTML we assemble ourselves, so this suite mainly guards two things:
+values coming from data are always escaped, and odd input becomes a message, not an exception
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from movie_retrieval.index import BruteForceIndex, RetrievalService
 
 USER_VOCAB = ["u1", "u2"]
 MOVIE_VOCAB = ["m1", "m2", "m3"]
-USER_EMB = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]], dtype=np.float32)  # แถว 0 = OOV
+USER_EMB = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]], dtype=np.float32)  # row 0 = OOV
 MOVIE_EMB = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]], dtype=np.float32)
 POPULARITY = np.array([30.0, 20.0, 10.0], dtype=np.float32)
 TITLES = {"m1": "Alpha", "m2": "Beta", "m3": "Gamma"}
@@ -57,7 +57,7 @@ class TestRows:
     def test_rows_are_ranked_from_one(self, service):
         rows = recommendation_rows(service.recommend("u2", k=3))
         assert [rank for rank, _, _ in rows] == [1, 2, 3]
-        assert rows[0][1] == "Alpha"  # u2 ชอบ m1
+        assert rows[0][1] == "Alpha"  # u2 likes m1
         assert isinstance(rows[0][2], float)
 
     def test_empty_recommendations_render_as_no_rows(self):
@@ -161,7 +161,7 @@ class TestRecommendForUi:
     def test_happy_path_fills_all_three_panels(self, service):
         results, status, history = recommend_for_ui(service, "u1", k=1)
         assert results.count('class="tt-row"') == 1
-        assert ">Alpha<" in results  # m2/m3 ถูกกรองเพราะ u1 เคยดูแล้ว
+        assert ">Alpha<" in results  # m2/m3 are filtered out because u1 has seen them
         assert "tt-status--ok" in status
         assert "Beta" in history
 
@@ -182,6 +182,6 @@ class TestRecommendForUi:
 
     def test_unknown_user_still_returns_candidates(self, service):
         results, status, history = recommend_for_ui(service, "stranger", k=2)
-        assert results.index("Alpha") < results.index("Beta")  # เรียงตาม popularity
+        assert results.index("Alpha") < results.index("Beta")  # ordered by popularity
         assert "Popularity fallback" in status
         assert "No interaction history" in history

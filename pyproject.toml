@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# UI stack แยกจาก runtime deps — คนที่ใช้แค่ library/CLI ไม่ต้องโหลด gradio
+# UI stack kept apart from the runtime deps — library/CLI users need not pull in gradio
 demo = ["gradio>=6,<7"]
 dev = [
     "pytest>=8,<9",
@@ -44,7 +44,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 source = ["movie_retrieval"]
 
 [tool.coverage.report]
-# บรรทัดที่รันเฉพาะตอนเรียกเป็น script — ไม่ใช่โค้ดที่ test ควรไล่
+# lines that only run when invoked as a script — not code the tests should chase
 exclude_also = ["if __name__ == .__main__.:"]
 
 [tool.ruff]
@@ -54,7 +54,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "S"]
-ignore = ["S101"]  # assert ใช้ใน tests/pipeline guards โดยตั้งใจ
+ignore = ["S101"]  # assert is used deliberately in tests/pipeline guards
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "B"]

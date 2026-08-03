@@ -1,15 +1,15 @@
-"""Gradio demo — พิมพ์ user id แล้วเห็น Top-K candidate จาก serving index จริง
+"""Gradio demo — type a user id and see Top-K candidates from the real serving index
 
-ทำไมต้องมี: README กับ notebook อธิบาย *ผล* ได้ แต่ไม่ให้คนอ่าน **ลองเอง**
-demo นี้เรียก `RetrievalService` ตัวเดียวกับ CLI บน artifacts ชุดเดียวกัน —
-input validation, seen filtering และ cold-start fallback จึงเป็นของจริงทั้งหมด ไม่ใช่ mock
+Why it exists: the README and the notebook can explain the *results*, but they don't let
+a reader **try it**. This demo calls the same `RetrievalService` the CLI calls, on the same
+artifacts — so input validation, seen filtering and cold-start fallback are all real, not mocked.
 
-Gradio เป็น optional dependency (`pip install -e ".[demo]"`) จึง `import` ไว้ข้างใน
-`build_demo()`/`main()` เท่านั้น — ส่วนที่ประกอบ HTML ยัง test ได้โดยไม่ต้องมี UI stack
+Gradio is an optional dependency (`pip install -e ".[demo]"`), so it is `import`ed inside
+`build_demo()`/`main()` only — the HTML-assembling parts stay testable without a UI stack.
 
-**หน้าจอเป็น HTML ที่เราเขียนเอง แปลว่าไม่มีใคร sanitize ให้** ทุกค่าที่มาจากข้อมูล
-(ชื่อหนัง, version, ข้อความ error) ต้องผ่าน `escape()` และตัวเลขต้องถูก format เป็นตัวเลข
-ก่อนแทรกเข้า style/attribute เสมอ
+**The screen is HTML we write ourselves, which means nobody sanitizes it for us.** Every
+value coming from data (movie titles, versions, error messages) must go through `escape()`,
+and numbers must be formatted as numbers before being interpolated into a style/attribute.
 """
 
 from __future__ import annotations
@@ -23,15 +23,15 @@ from typing import TYPE_CHECKING
 from .config import Paths
 from .index import RetrievalService
 
-if TYPE_CHECKING:  # pragma: no cover — ใช้เฉพาะตอน type check
+if TYPE_CHECKING:  # pragma: no cover — used during type checking only
     import gradio as gr
 
-# ต่ำกว่า MAX_K ของ service โดยตั้งใจ: หน้าจอเดียวอ่านไหวแค่นี้
+# deliberately below the service's MAX_K: this is as much as one screen stays readable with
 MAX_DEMO_K = 20
 DEFAULT_K = 10
 HISTORY_PREVIEW = 12
 
-# % ต่ำสุดของแท่งคะแนน — อันดับสุดท้ายต้องยังเห็นเป็นแท่ง ไม่ใช่เส้นที่หายไป
+# minimum score-bar width (%) — the last rank must still read as a bar, not a vanishing line
 MIN_BAR_WIDTH = 8
 
 DEFAULT_USER_ID = "42"
@@ -52,7 +52,7 @@ research use only, downloaded at runtime, never redistributed ·
 [source code](https://github.com/Sayomphon/Two_Tower_Movie_Retrieval)
 """
 
-# สีทุกค่าอ้าง CSS variable ของ Gradio → light/dark สลับได้เองโดยไม่ต้องเขียนสองชุด
+# every color references a Gradio CSS variable → light/dark switch themselves, no second set
 CSS = """
 .gradio-container { max-width: 900px !important; margin: 0 auto !important; }
 
@@ -84,8 +84,9 @@ CSS = """
   display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 14px;
   padding: 9px 10px; border-radius: 10px; transition: background 120ms ease;
 }
-/* ธีมมืดมี --background-fill-secondary เกือบเท่าสีพื้น hover เลยหายไป —
-   overlay จากสีตัวอักษรจึงเห็นได้ทั้งสองธีม (บรรทัดแรกคือ fallback ของ browser เก่า) */
+/* in the dark theme --background-fill-secondary is nearly the page background, so hover
+   disappears — an overlay derived from the text color shows in both themes
+   (the first line is the fallback for older browsers) */
 .tt-row:hover {
   background: var(--background-fill-secondary);
   background: color-mix(in srgb, var(--body-text-color) 7%, transparent);
@@ -134,10 +135,10 @@ CSS = """
 
 
 def header_stats(artifacts_dir: Path) -> list[tuple[str, str]]:
-    """ตัวเลขจริงจาก `metrics.json` มาเป็น chip บน hero — หลักฐาน ไม่ใช่ของประดับ
+    """Real numbers from `metrics.json` as chips on the hero — evidence, not decoration
 
-    ถ้าไฟล์หาย/อ่านไม่ได้ (เช่นยังไม่เคยรัน evaluate) ให้ hero ไม่มี chip
-    ดีกว่าปล่อยให้ทั้งหน้าพังเพราะของตกแต่ง
+    If the file is missing/unreadable (e.g. evaluate has never run), the hero simply gets
+    no chips — better than letting the whole page break over an ornament.
     """
     try:
         metrics = json.loads((artifacts_dir / "metrics.json").read_text())
@@ -152,7 +153,7 @@ def header_stats(artifacts_dir: Path) -> list[tuple[str, str]]:
 
 
 def render_hero(stats: list[tuple[str, str]]) -> str:
-    """หัวหน้าจอ: ชื่อ + หนึ่งย่อหน้าอธิบาย + แถบตัวเลขที่พิสูจน์ว่าของจริง"""
+    """Top of the screen: title + one explanatory paragraph + the numbers that prove it's real"""
     chips = "".join(
         f'<div class="tt-stat"><b>{escape(value)}</b><span>{escape(label)}</span></div>'
         for value, label in stats
@@ -167,7 +168,7 @@ def render_hero(stats: list[tuple[str, str]]) -> str:
 
 
 def recommendation_rows(response: dict) -> list[tuple[int, str, float]]:
-    """response → แถวผลลัพธ์ (อันดับ, ชื่อหนัง, คะแนน)"""
+    """response → result rows (rank, movie title, score)"""
     return [
         (rank, item["title"], item["score"])
         for rank, item in enumerate(response["recommendations"], start=1)
@@ -175,21 +176,22 @@ def recommendation_rows(response: dict) -> list[tuple[int, str, float]]:
 
 
 def bar_widths(scores: list[float]) -> list[float]:
-    """คะแนน → ความกว้างแท่ง (%) เทียบกันเองภายใน response เดียว
+    """Scores → bar widths (%), relative to each other within a single response
 
-    คะแนนคนละ path เทียบกันไม่ได้ (dot product อาจติดลบ ส่วน popularity คือ count หลักร้อย)
-    จึง normalize ด้วย min/max ของชุดนั้น — แท่งบอก "ห่างกันแค่ไหนในลิสต์นี้" ไม่ใช่ค่าสัมบูรณ์
+    Scores from different paths are not comparable (a dot product can be negative, while
+    popularity is a count in the hundreds), so they are normalized by that set's min/max —
+    a bar says "how far apart within this list", not an absolute value.
     """
     if not scores:
         return []
     lo, hi = min(scores), max(scores)
-    if hi <= lo:  # คะแนนเท่ากันหมด → เต็มทุกแท่ง ดีกว่าหารศูนย์
+    if hi <= lo:  # all scores equal → fill every bar, better than dividing by zero
         return [100.0] * len(scores)
     return [round(MIN_BAR_WIDTH + (100 - MIN_BAR_WIDTH) * (s - lo) / (hi - lo), 1) for s in scores]
 
 
 def render_results(rows: list[tuple[int, str, float]]) -> str:
-    """แถวผลลัพธ์ → HTML (ชื่อหนัง escape เสมอ, ความกว้างแท่งเป็นตัวเลขล้วน)"""
+    """Result rows → HTML (titles always escaped, bar widths are plain numbers)"""
     if not rows:
         return ""
     widths = bar_widths([score for _, _, score in rows])
@@ -208,7 +210,7 @@ def render_results(rows: list[tuple[int, str, float]]) -> str:
 
 
 def status_badge(response: dict) -> str:
-    """แถบสถานะใต้ผลลัพธ์ — ผลนี้มาจาก path ไหน และ artifact เวอร์ชันอะไร"""
+    """Status bar under the results — which path produced them, and from which artifact version"""
     if response["fallback_used"]:
         tone, headline = "warn", "Popularity fallback"
         detail = (
@@ -228,9 +230,9 @@ def status_badge(response: dict) -> str:
 
 
 def message_badge(text: str, tone: str = "muted") -> str:
-    """แถบข้อความสำหรับสถานะที่ไม่มีผลลัพธ์ (ยังไม่กรอก / input ไม่ผ่าน validation)
+    """Message bar for states with no results (nothing entered / input failed validation)
 
-    `tone` มาจากโค้ดเราเท่านั้น ไม่เคยมาจาก input ผู้ใช้ — ส่วน `text` escape เสมอ
+    `tone` only ever comes from our own code, never from user input — `text` is always escaped
     """
     return (
         f'<div class="tt-status tt-status--{tone}"><span class="tt-dot"></span>'
@@ -239,7 +241,7 @@ def message_badge(text: str, tone: str = "muted") -> str:
 
 
 def history_chips(service: RetrievalService, user_id: str, limit: int = HISTORY_PREVIEW) -> str:
-    """หนังที่ user เคยเรตแล้ว — บริบทให้ดูว่า recommendation สมเหตุสมผลไหม"""
+    """Movies this user already rated — context for judging whether the recs make sense"""
     titles = service.seen_titles(user_id)
     if not titles:
         return '<p class="tt-empty">No interaction history for this id — nothing was filtered.</p>'
@@ -251,10 +253,10 @@ def history_chips(service: RetrievalService, user_id: str, limit: int = HISTORY_
 
 
 def recommend_for_ui(service: RetrievalService, user_id: str, k: int) -> tuple[str, str, str]:
-    """สะพานระหว่าง UI กับ service — คืนสิ่งที่ 3 ช่องบนหน้าจอต้องใช้
+    """Bridge between the UI and the service — returns what the three panels on screen need
 
-    input ที่ไม่ผ่าน validation ของ service ถูกแปลงเป็นข้อความบอกผู้ใช้
-    (ไม่ปล่อย exception ขึ้นไปให้ Gradio แสดงเป็น error ดิบ)
+    Input that fails the service's validation is turned into a message for the user
+    (rather than letting the exception bubble up for Gradio to show as a raw error)
     """
     user_id = (user_id or "").strip()
     if not user_id:
@@ -273,15 +275,16 @@ def recommend_for_ui(service: RetrievalService, user_id: str, k: int) -> tuple[s
 
 
 def build_demo(service: RetrievalService, stats: list[tuple[str, str]] | None = None) -> gr.Blocks:
-    """ประกอบหน้าจอ: hero → input → ผลลัพธ์ → สถานะ → ประวัติที่ถูกกรองออก"""
+    """Assemble the screen: hero → input → results → status → the filtered-out history"""
     import gradio as gr
 
     def on_submit(raw_user_id: str, raw_k: float) -> tuple[str, str, str]:
         return recommend_for_ui(service, raw_user_id, int(raw_k))
 
-    # analytics_enabled=False: ไม่ส่ง telemetry ออกนอกเครื่อง
+    # analytics_enabled=False: no telemetry leaves the machine
     with gr.Blocks(title="Two-Tower Movie Retrieval", analytics_enabled=False) as demo:
-        # สร้างช่องผลลัพธ์ไว้ก่อนเพื่อให้ปุ่ม Try อ้างถึงได้ แล้วค่อย .render() ตามลำดับบนหน้าจอ
+        # create the output slots first so the Try button can reference them, then .render()
+        # them in on-screen order
         results = gr.HTML(render=False)
         status = gr.HTML(render=False)
         history = gr.HTML(render=False)
@@ -306,7 +309,7 @@ def build_demo(service: RetrievalService, stats: list[tuple[str, str]] | None = 
             inputs=[user_id, k],
             outputs=outputs,
             fn=on_submit,
-            run_on_click=True,  # คลิกเดียวเห็นผล — ไม่ใช่แค่เติมค่าลงช่อง
+            run_on_click=True,  # one click shows results — not just filling the fields
             cache_examples=False,
             label="Try",
         )
@@ -321,14 +324,14 @@ def build_demo(service: RetrievalService, stats: list[tuple[str, str]] | None = 
 
         submit.click(on_submit, inputs=[user_id, k], outputs=outputs)
         user_id.submit(on_submit, inputs=[user_id, k], outputs=outputs)
-        # เปิดหน้ามาเห็นผลจริงทันทีโดยไม่ต้องเดาว่าจะพิมพ์อะไร
+        # real results on page load, without having to guess what to type
         demo.load(on_submit, inputs=[user_id, k], outputs=outputs)
 
     return demo
 
 
 def main() -> None:
-    """รัน demo บน artifacts ที่ export ไว้ (ต้องรัน `movie-retrieval all` มาก่อน)"""
+    """Run the demo on the exported artifacts (`movie-retrieval all` must have run first)"""
     import gradio as gr
 
     paths = Paths.default()
@@ -339,11 +342,12 @@ def main() -> None:
         )
 
     service = RetrievalService.from_artifacts(paths.artifacts_dir)
-    # อ่าน metrics ครั้งเดียวตอน start — hero ไม่ควรแตะ disk ทุก request
+    # read metrics once at startup — the hero should not touch disk on every request
     stats = header_stats(paths.artifacts_dir)
     stats.append((f"{service.catalogue_size:,}", "Movies indexed"))
 
-    # max_size จำกัดคิวกันโหลดถล่ม · api_open=False ปิด API endpoint ที่ demo ไม่ได้ใช้
+    # max_size caps the queue against load spikes · api_open=False closes the API endpoint
+    # the demo does not use
     build_demo(service, stats).queue(max_size=32, api_open=False).launch(
         theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate"),
         css=CSS,

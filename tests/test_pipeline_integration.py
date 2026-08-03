@@ -1,7 +1,7 @@
-"""Integration test บน MovieLens 100K จริง — skip อัตโนมัติถ้ายังไม่ได้ดาวน์โหลด
+"""Integration test on the real MovieLens 100K — skipped automatically if not downloaded yet
 
-ใช้ tmp_path เป็น project root แยกขาดจาก artifacts จริง (copy zip ที่มีอยู่ไปใช้
-เพื่อไม่ต้องดาวน์โหลดซ้ำ และ checksum ยังถูก verify เหมือนเดิม)
+Uses tmp_path as the project root, fully isolated from the real artifacts (the existing zip
+is copied over so nothing is downloaded twice, and the checksum is still verified as usual)
 """
 
 from __future__ import annotations
@@ -37,17 +37,17 @@ class TestPrepareOnRealData:
         cfg = ExperimentConfig()
         summary = prepare(tmp_paths, cfg)
 
-        # ml-100k: ทุก user มี >= 20 ratings → ไม่มีใครถูก drop ที่ min_history=5
+        # ml-100k: every user has >= 20 ratings → nobody is dropped at min_history=5
         assert summary["n_users_dropped"] == 0
         assert summary["n_test_users"] == EXPECTED_N_USERS
-        assert summary["n_test"] == EXPECTED_N_USERS  # k_test=1 ต่อ user
+        assert summary["n_test"] == EXPECTED_N_USERS  # k_test=1 per user
         assert summary["n_train"] + summary["n_val"] + summary["n_test"] == 100_000
 
-        # โหลดกลับจาก CSV แล้ว audit ต้องผ่านเหมือนเดิม (round-trip integrity)
+        # reload from CSV and the audit must still pass (round-trip integrity)
         split = load_splits(tmp_paths)
         report = audit_no_leakage(split, cfg.split)
         assert report["no_test_train_overlap"] is True
 
-        # artifacts ที่ต้องเกิดขึ้น
+        # artifacts that must have been created
         assert (tmp_paths.artifacts_dir / "split_config.json").exists()
         assert (tmp_paths.artifacts_dir / "data_card.json").exists()
